@@ -4,7 +4,7 @@
 # -- Name des Namespaces (Pflichtfeld, muss in der App-values.yaml gesetzt werden)
 namespace: ""
 
-# -- Anzeigename für Labels/Annotations
+# -- Anzeigename für Annotations
 displayName: ""
 
 # -- Zugehöriges Projekt (wird als Label gesetzt)
@@ -13,14 +13,11 @@ project: ""
 # -- ResourceQuota
 quota:
   enabled: true
-  # Maximale Anzahl Pods im Namespace
   pods: "20"
-  # CPU Limits/Requests
   limitsCpu: "4"
   limitsMemory: "8Gi"
   requestsCpu: "2"
   requestsMemory: "4Gi"
-  # Maximale Anzahl Services, Secrets, ConfigMaps
   services: "20"
   secrets: "50"
   configmaps: "50"
@@ -41,10 +38,15 @@ limitRange:
 # -- NetworkPolicy
 networkPolicy:
   enabled: true
-  # Eingehender Traffic nur aus dem eigenen Namespace und openshift-ingress erlaubt
+  # Eingehender Traffic vom OpenShift Ingress (Router) erlauben
   allowFromIngress: true
+  # Eingehender Traffic innerhalb desselben Namespace erlauben
   allowFromSameNamespace: true
-  # Zusätzliche erlaubte Namespaces (z.B. Monitoring)
+  # Ausgehender Traffic innerhalb desselben Namespace erlauben
+  # (z.B. für Service-zu-Service Kommunikation innerhalb der App)
+  allowEgressSameNamespace: true
+  # Zusätzliche Namespaces von denen eingehender Traffic erlaubt ist
+  # (z.B. openshift-monitoring für Prometheus Scraping)
   additionalIngressNamespaces: []
   #  - openshift-monitoring
 
@@ -58,7 +60,7 @@ rbac:
   #  - project-a-developers
   # Gruppen mit view-Rolle im Namespace
   viewGroups: []
-  # Einzelne User mit admin-Rolle (Ausnahme, bevorzugt Gruppen verwenden)
+  # Einzelne User mit admin-Rolle (bevorzugt Gruppen verwenden)
   adminUsers: []
   # Einzelne User mit edit-Rolle
   editUsers: []

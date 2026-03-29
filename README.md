@@ -10,16 +10,20 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 ```
 ocp-workloads/
 ├── charts/
-│   └── namespace-config/        ← Helm Library Chart (Platform Team)
+│   └── namespace-config/        ← Helm Chart (Platform Team)
 │                                   Templates für Namespace, Quota, NetPol, RBAC
 └── apps/
     └── project-a/               ← je Projekt ein Verzeichnis
         ├── appproject.yaml      ← ArgoCD AppProject (Wave -1)
         ├── groups.yaml          ← Projekt-Gruppen (Wave  0)
-        └── my-app/              ← je App ein Unterverzeichnis
-            ├── namespace-config-app.yaml  ← Namespace-Konfiguration via Helm (Wave 0)
-            ├── values.yaml                ← App-spezifische Werte
-            └── my-app-app.yaml            ← Application → App-Repo Entwickler (Wave 1)
+        ├── my-app/              ← je App ein Unterverzeichnis
+        │   ├── namespace-config-app.yaml  ← Namespace-Konfiguration via Helm (Wave 0)
+        │   ├── values.yaml                ← App-spezifische Werte
+        │   └── my-app-app.yaml            ← Application → App-Repo Entwickler (Wave 1)
+        └── your-app/
+            ├── namespace-config-app.yaml
+            ├── values.yaml
+            └── your-app-app.yaml
 ```
 
 ---
@@ -31,9 +35,12 @@ workloads-app (aus ocp-platform)
 └── apps/project-a/
     ├── appproject.yaml                    Wave -1  AppProject anlegen
     ├── groups.yaml                        Wave  0  Gruppen anlegen
-    └── my-app/
+    ├── my-app/
+    │   ├── namespace-config-app.yaml      Wave  0  Namespace, Quota, NetPol, RBAC
+    │   └── my-app-app.yaml                Wave  1  eigentliche App deployen
+    └── your-app/
         ├── namespace-config-app.yaml      Wave  0  Namespace, Quota, NetPol, RBAC
-        └── my-app-app.yaml                Wave  1  eigentliche App deployen
+        └── your-app-app.yaml              Wave  1  eigentliche App deployen
 ```
 
 ---
@@ -42,7 +49,7 @@ workloads-app (aus ocp-platform)
 
 | Wer | Was |
 |---|---|
-| Platform Team | `charts/namespace-config/` — Library Chart pflegen |
+| Platform Team | `charts/namespace-config/` — Helm Chart pflegen |
 | Platform Team | `apps/<project>/appproject.yaml` — AppProject anlegen |
 | Platform Team | `apps/<project>/groups.yaml` — Projekt-Gruppen und Mitglieder |
 | Platform Team | `apps/<project>/<app>/namespace-config-app.yaml` — Namespace-Config Application |
@@ -59,32 +66,36 @@ Passwörter liegen **nicht in Git** — sie werden manuell im HTPasswd-Secret ge
 
 ### Mitglied zu Projekt-Gruppe hinzufügen
 
-```bash
-# apps/project-a/groups.yaml editieren:
-# z.B. Entwickler zu project-a-developers hinzufügen
+**1. User in Git zur Gruppe hinzufügen** (`apps/project-a/groups.yaml`):
+
+```yaml
 users:
   - vorhandener-user
-  - neuer-entwickler    # neu
-
-git add . && git commit -m "feat(project-a): add neuer-entwickler" && git push
+  - neuer-entwickler
 ```
 
-ArgoCD übernimmt die Änderung automatisch.
+```powershell
+git add . && git commit -m "feat(project-a): add neuer-entwickler"
+git push
+```
 
-### Passwort für neuen User anlegen (manuell, außerhalb Git)
+**2. Passwort manuell im Secret ergänzen:**
 
-```bash
-oc get secret htpasswd-secret -n openshift-config \
-  -o jsonpath='{.data.htpasswd}' | base64 -d > /tmp/htpasswd
+```powershell
+oc get secret htpasswd-secret -n openshift-config `
+  -o jsonpath='{.data.htpasswd}' | `
+  [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_)) | `
+  Out-File -FilePath "$env:TEMP\htpasswd" -Encoding utf8NoBOM
 
-htpasswd /tmp/htpasswd neuer-entwickler
+# Hash generieren: https://bcrypt-generator.com (Rounds 10)
+Add-Content "$env:TEMP\htpasswd" 'neuer-entwickler:$2a$10$HASH_HIER'
 
-oc create secret generic htpasswd-secret \
-  --from-file=htpasswd=/tmp/htpasswd \
-  -n openshift-config \
+oc create secret generic htpasswd-secret `
+  --from-file=htpasswd="$env:TEMP\htpasswd" `
+  -n openshift-config `
   --dry-run=client -o yaml | oc apply -f -
 
-rm /tmp/htpasswd
+Remove-Item "$env:TEMP\htpasswd"
 ```
 
 ---
@@ -93,24 +104,24 @@ rm /tmp/htpasswd
 
 ### 1. Verzeichnis und Pflichtdateien anlegen
 
-```bash
-mkdir -p apps/project-b
-
-# Folgende Dateien anlegen (Vorlage: apps/project-a/):
-# - appproject.yaml   AppProject "project-b"
-# - groups.yaml       project-b-admins, project-b-developers
+```powershell
+mkdir apps\project-b
 ```
 
-### 2. Erste App im Projekt anlegen
+Folgende Dateien anlegen (Vorlage: `apps/project-a/`):
+- `appproject.yaml` — AppProject `project-b`
+- `groups.yaml` — `project-b-admins`, `project-b-developers`
 
-```bash
-mkdir -p apps/project-b/my-first-app
+### 2. Erste App anlegen
 
-# Folgende Dateien anlegen (Vorlage: apps/project-a/my-app/):
-# - namespace-config-app.yaml
-# - values.yaml
-# - my-first-app-app.yaml
+```powershell
+mkdir apps\project-b\my-first-app
 ```
+
+Folgende Dateien anlegen (Vorlage: `apps/project-a/my-app/`):
+- `namespace-config-app.yaml`
+- `values.yaml`
+- `my-first-app-app.yaml`
 
 ### 3. App-Repo in AppProject eintragen
 
@@ -124,8 +135,9 @@ sourceRepos:
 
 ### 4. Commit & Push
 
-```bash
-git add . && git commit -m "feat: add project-b with my-first-app" && git push
+```powershell
+git add . && git commit -m "feat: add project-b with my-first-app"
+git push
 ```
 
 ArgoCD deployt automatisch.
@@ -134,27 +146,35 @@ ArgoCD deployt automatisch.
 
 ## Neue App zu bestehendem Projekt hinzufügen
 
-```bash
-mkdir -p apps/project-a/second-app
+```powershell
+mkdir apps\project-a\second-app
+```
 
-# Dateien anlegen:
-# - namespace-config-app.yaml  (Vorlage: apps/project-a/my-app/namespace-config-app.yaml)
-# - values.yaml                (Vorlage: apps/project-a/my-app/values.yaml)
-# - second-app-app.yaml        (Vorlage: apps/project-a/my-app/my-app-app.yaml)
+Dateien anlegen (Vorlage: `apps/project-a/my-app/`):
+- `namespace-config-app.yaml`
+- `values.yaml`
+- `second-app-app.yaml`
 
-# App-Repo in AppProject eintragen:
-# apps/project-a/appproject.yaml → sourceRepos ergänzen
+App-Repo in `apps/project-a/appproject.yaml` unter `sourceRepos` ergänzen:
 
-git add . && git commit -m "feat(project-a): add second-app" && git push
+```yaml
+sourceRepos:
+  - https://github.com/chriwo42-lang/ocp-workloads.git
+  - https://github.com/chriwo42-lang/my-app.git
+  - https://github.com/chriwo42-lang/your-app.git
+  - https://github.com/chriwo42-lang/second-app.git
+```
+
+```powershell
+git add . && git commit -m "feat(project-a): add second-app"
+git push
 ```
 
 ---
 
-## Helm Library Chart: namespace-config
+## Helm Chart: namespace-config
 
-Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle verfügbaren Werte und Defaults.
-
-Konfigurierbar je App über `values.yaml`:
+Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte und Defaults.
 
 | Bereich | Konfigurierbar |
 |---|---|
@@ -169,4 +189,4 @@ Konfigurierbar je App über `values.yaml`:
 
 | Projekt | Gruppen | Apps |
 |---|---|---|
-| project-a | project-a-admins, project-a-developers | my-app |
+| project-a | project-a-admins, project-a-developers | my-app, your-app |

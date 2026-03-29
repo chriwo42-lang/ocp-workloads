@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# Deny-All als Basis: kein eingehender Traffic standardmäßig erlaubt
+# Deny-All als Basis: kein eingehender oder ausgehender Traffic standardmäßig erlaubt
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -28,6 +28,22 @@ spec:
         - port: 53
           protocol: TCP
 ---
+{{- if .Values.networkPolicy.allowEgressSameNamespace }}
+# Egress: Ausgehender Traffic innerhalb desselben Namespace erlauben
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-same-namespace
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+---
+{{- end }}
 {{- if .Values.networkPolicy.allowFromSameNamespace }}
 # Ingress: Traffic innerhalb desselben Namespace erlauben
 apiVersion: networking.k8s.io/v1
