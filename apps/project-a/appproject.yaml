@@ -1,4 +1,4 @@
-apiVersion: argoproj.io/v1beta1
+apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: project-a
@@ -10,10 +10,10 @@ spec:
   sourceRepos:
     - https://github.com/chriwo42-lang/ocp-workloads.git
     - https://github.com/chriwo42-lang/my-app.git
+    - https://github.com/chriwo42-lang/your-app.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: project-a-*
-    # Cluster-Scope für Group-Objekte
     - server: https://kubernetes.default.svc
       namespace: ''
   clusterResourceWhitelist:
