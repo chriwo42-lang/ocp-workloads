@@ -1,0 +1,64 @@
+# Default-Werte für den namespace-config Chart.
+# Alle Werte können in der jeweiligen App-values.yaml überschrieben werden.
+
+# -- Name des Namespaces (Pflichtfeld, muss in der App-values.yaml gesetzt werden)
+namespace: ""
+
+# -- Anzeigename für Labels/Annotations
+displayName: ""
+
+# -- Zugehöriges Projekt (wird als Label gesetzt)
+project: ""
+
+# -- ResourceQuota
+quota:
+  enabled: true
+  # Maximale Anzahl Pods im Namespace
+  pods: "20"
+  # CPU Limits/Requests
+  limitsCpu: "4"
+  limitsMemory: "8Gi"
+  requestsCpu: "2"
+  requestsMemory: "4Gi"
+  # Maximale Anzahl Services, Secrets, ConfigMaps
+  services: "20"
+  secrets: "50"
+  configmaps: "50"
+
+# -- LimitRange: Default-Limits für einzelne Container
+limitRange:
+  enabled: true
+  default:
+    cpu: "500m"
+    memory: "512Mi"
+  defaultRequest:
+    cpu: "100m"
+    memory: "128Mi"
+  max:
+    cpu: "2"
+    memory: "4Gi"
+
+# -- NetworkPolicy
+networkPolicy:
+  enabled: true
+  # Eingehender Traffic nur aus dem eigenen Namespace und openshift-ingress erlaubt
+  allowFromIngress: true
+  allowFromSameNamespace: true
+  # Zusätzliche erlaubte Namespaces (z.B. Monitoring)
+  additionalIngressNamespaces: []
+  #  - openshift-monitoring
+
+# -- RBAC
+rbac:
+  # Gruppen mit admin-Rolle im Namespace
+  adminGroups: []
+  #  - project-a-admins
+  # Gruppen mit edit-Rolle im Namespace
+  editGroups: []
+  #  - project-a-developers
+  # Gruppen mit view-Rolle im Namespace
+  viewGroups: []
+  # Einzelne User mit admin-Rolle (Ausnahme, bevorzugt Gruppen verwenden)
+  adminUsers: []
+  # Einzelne User mit edit-Rolle
+  editUsers: []

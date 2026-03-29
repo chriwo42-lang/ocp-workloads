@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1beta1
+kind: Application
+metadata:
+  name: project-a-my-app-namespace
+  namespace: openshift-gitops
+  annotations:
+    # Wave 0: Namespace-Konfiguration vor der eigentlichen App deployen
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: project-a
+  sources:
+    # Source 1: Helm Library Chart aus ocp-workloads
+    - repoURL: https://github.com/chriwo42-lang/ocp-workloads.git
+      targetRevision: main
+      path: charts/namespace-config
+      helm:
+        # Source 2: values.yaml aus diesem Verzeichnis überschreibt Chart-Defaults
+        valueFiles:
+          - $values/apps/project-a/my-app/values.yaml
+    # Source 2: values.yaml Referenz (wird als $values referenziert)
+    - repoURL: https://github.com/chriwo42-lang/ocp-workloads.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: project-a-my-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

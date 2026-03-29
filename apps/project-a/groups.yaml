@@ -1,0 +1,26 @@
+---
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: project-a-admins
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    # Mitglieder erhalten admin-RoleBinding in allen project-a-* Namespaces
+    # RoleBindings werden via namespace-config Helm Chart gesetzt (rbac.adminGroups)
+users: []
+  # Beispiel:
+  # - alice
+  # - bob
+---
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: project-a-developers
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    # Mitglieder erhalten edit-RoleBinding in allen project-a-* Namespaces
+    # RoleBindings werden via namespace-config Helm Chart gesetzt (rbac.editGroups)
+users: []
+  # Beispiel:
+  # - charlie
+  # - dave

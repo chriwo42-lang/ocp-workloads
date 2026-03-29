@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1beta1
+kind: AppProject
+metadata:
+  name: project-a
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Project A – Applikationen und Namespace-Konfiguration
+  sourceRepos:
+    - https://github.com/chriwo42-lang/ocp-workloads.git
+    - https://github.com/chriwo42-lang/my-app.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: project-a-*
+    # Cluster-Scope für Group-Objekte
+    - server: https://kubernetes.default.svc
+      namespace: ''
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: user.openshift.io
+      kind: Group
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: project-a-admin
+      description: Admin-Zugriff auf alle Apps in project-a
+      policies:
+        - p, proj:project-a:project-a-admin, applications, *, project-a/*, allow
+      groups:
+        - project-a-admins

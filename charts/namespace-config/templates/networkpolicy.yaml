@@ -1,0 +1,83 @@
+{{- if .Values.networkPolicy.enabled }}
+# Deny-All als Basis: kein eingehender Traffic standardmäßig erlaubt
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Egress: DNS immer erlauben (Port 53 UDP/TCP)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+{{- if .Values.networkPolicy.allowFromSameNamespace }}
+# Ingress: Traffic innerhalb desselben Namespace erlauben
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+---
+{{- end }}
+{{- if .Values.networkPolicy.allowFromIngress }}
+# Ingress: Traffic vom OpenShift Ingress (Router) erlauben
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-openshift-ingress
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+---
+{{- end }}
+{{- range .Values.networkPolicy.additionalIngressNamespaces }}
+# Ingress: Traffic aus zusätzlichem Namespace {{ . }} erlauben
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-{{ . }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+---
+{{- end }}
+{{- end }}
