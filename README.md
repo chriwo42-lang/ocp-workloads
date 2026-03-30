@@ -12,8 +12,10 @@ ocp-workloads/
 ├── groups/                  ← Globale Gruppen-Definitionen (eine Datei pro Gruppe)
 │   ├── project-a-admins.yaml
 │   ├── project-a-developers.yaml
+│   ├── project-a-viewers.yaml
 │   ├── project-b-admins.yaml
-│   └── project-b-developers.yaml
+│   ├── project-b-developers.yaml
+│   └── project-b-viewers.yaml
 ├── charts/
 │   └── namespace-config/    ← Helm Chart für Namespace-Konfiguration
 └── apps/
@@ -48,10 +50,10 @@ workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
 └── groups/                                 ├── apps/project-a/
     ├── project-a-admins.yaml  Wave -1      │   ├── appproject.yaml      Wave -1
     ├── project-a-developers.yaml           │   ├── my-app/
-    ├── project-b-admins.yaml               │   │   ├── namespace-config  Wave  0
-    └── project-b-developers.yaml           │   │   └── my-app-app        Wave  1
-                                            │   └── your-app/
-                                            │       ├── namespace-config  Wave  0
+    ├── project-a-viewers.yaml              │   │   ├── namespace-config  Wave  0
+    ├── project-b-admins.yaml               │   │   └── my-app-app        Wave  1
+    ├── project-b-developers.yaml           │   └── your-app/
+    └── project-b-viewers.yaml             │       ├── namespace-config  Wave  0
                                             │       └── your-app-app      Wave  1
                                             └── apps/project-b/
                                                 ├── appproject.yaml      Wave -1
@@ -127,11 +129,12 @@ Remove-Item "$env:TEMP\htpasswd"
 
 ## Neues Projekt anlegen
 
-### 1. Gruppen anlegen
+### 1. Gruppen anlegen (je eine Datei pro Rolle)
 
 ```powershell
-# groups/project-c-admins.yaml anlegen (Vorlage: groups/project-a-admins.yaml)
-# groups/project-c-developers.yaml anlegen
+# groups/project-c-admins.yaml    (Vorlage: groups/project-a-admins.yaml)
+# groups/project-c-developers.yaml
+# groups/project-c-viewers.yaml
 ```
 
 ### 2. Projektverzeichnis und AppProject anlegen
@@ -139,6 +142,7 @@ Remove-Item "$env:TEMP\htpasswd"
 ```powershell
 mkdir apps\project-c
 # appproject.yaml anlegen (Vorlage: apps/project-a/appproject.yaml)
+# Rollen: project-c-admin, project-c-developer, project-c-viewer
 ```
 
 ### 3. Apps anlegen
@@ -146,6 +150,7 @@ mkdir apps\project-c
 ```powershell
 mkdir apps\project-c\my-first-app
 # namespace-config-app.yaml, values.yaml, my-first-app-app.yaml anlegen
+# In values.yaml: rbac.adminGroups, editGroups, viewGroups setzen
 ```
 
 ### 4. Commit & Push
@@ -169,22 +174,26 @@ rbac:
     - project-a-admins      # muss in groups/project-a-admins.yaml existieren
   editGroups:
     - project-a-developers  # muss in groups/project-a-developers.yaml existieren
+  viewGroups:
+    - project-a-viewers     # muss in groups/project-a-viewers.yaml existieren
 ```
 
 ---
 
 ## Gruppen
 
-| Gruppe | Mitglieder | Zugewiesen in |
-|---|---|---|
-| project-a-admins | — | project-a-my-app, project-a-your-app |
-| project-a-developers | developer | project-a-my-app, project-a-your-app |
-| project-b-admins | — | project-b-my-app, project-b-your-app |
-| project-b-developers | developer | project-b-my-app, project-b-your-app |
+| Gruppe | ArgoCD-Rolle | OpenShift-Rolle | Mitglieder | Namespaces |
+|---|---|---|---|---|
+| project-a-admins | project-a-admin | admin | — | project-a-* |
+| project-a-developers | project-a-developer | edit | developer | project-a-* |
+| project-a-viewers | project-a-viewer | view | — | project-a-* |
+| project-b-admins | project-b-admin | admin | — | project-b-* |
+| project-b-developers | project-b-developer | edit | developer | project-b-* |
+| project-b-viewers | project-b-viewer | view | — | project-b-* |
 
 ## Projekte
 
 | Projekt | Gruppen | Apps |
 |---|---|---|
-| project-a | project-a-admins, project-a-developers | my-app, your-app |
-| project-b | project-b-admins, project-b-developers | my-app, your-app |
+| project-a | project-a-admins, project-a-developers, project-a-viewers | my-app, your-app |
+| project-b | project-b-admins, project-b-developers, project-b-viewers | my-app, your-app |
