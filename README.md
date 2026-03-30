@@ -9,17 +9,18 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 
 ```
 ocp-workloads/
+├── groups/                  ← Globale Gruppen-Definitionen (eine Datei pro Gruppe)
+│   ├── project-a-admins.yaml
+│   └── project-a-developers.yaml
 ├── charts/
-│   └── namespace-config/        ← Helm Chart (Platform Team)
-│                                   Templates für Namespace, Quota, NetPol, RBAC
+│   └── namespace-config/    ← Helm Chart für Namespace-Konfiguration
 └── apps/
-    └── project-a/               ← je Projekt ein Verzeichnis
-        ├── appproject.yaml      ← ArgoCD AppProject (Wave -1)
-        ├── groups.yaml          ← Projekt-Gruppen (Wave  0)
-        ├── my-app/              ← je App ein Unterverzeichnis
-        │   ├── namespace-config-app.yaml  ← Namespace-Konfiguration via Helm (Wave 0)
-        │   ├── values.yaml                ← App-spezifische Werte
-        │   └── my-app-app.yaml            ← Application → App-Repo Entwickler (Wave 1)
+    └── project-a/           ← je Projekt ein Verzeichnis
+        ├── appproject.yaml  ← ArgoCD AppProject (Wave -1)
+        ├── my-app/          ← je App ein Unterverzeichnis
+        │   ├── namespace-config-app.yaml  ← Namespace, Quota, NetPol, RBAC (Wave 0)
+        │   ├── values.yaml                ← referenziert Gruppennamen
+        │   └── my-app-app.yaml            ← Application → App-Repo (Wave 1)
         └── your-app/
             ├── namespace-config-app.yaml
             ├── values.yaml
@@ -31,16 +32,15 @@ ocp-workloads/
 ## Sync-Flow
 
 ```
-workloads-app (aus ocp-platform)
-└── apps/project-a/
-    ├── appproject.yaml                    Wave -1  AppProject anlegen
-    ├── groups.yaml                        Wave  0  Gruppen anlegen
-    ├── my-app/
-    │   ├── namespace-config-app.yaml      Wave  0  Namespace, Quota, NetPol, RBAC
-    │   └── my-app-app.yaml                Wave  1  eigentliche App deployen
-    └── your-app/
-        ├── namespace-config-app.yaml      Wave  0  Namespace, Quota, NetPol, RBAC
-        └── your-app-app.yaml              Wave  1  eigentliche App deployen
+workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
+└── groups/                                 └── apps/project-a/
+    ├── project-a-admins.yaml  Wave -1          ├── appproject.yaml    Wave -1
+    └── project-a-developers.yaml               ├── my-app/
+                                                │   ├── namespace-config-app  Wave 0
+                                                │   └── my-app-app            Wave 1
+                                                └── your-app/
+                                                    ├── namespace-config-app  Wave 0
+                                                    └── your-app-app          Wave 1
 ```
 
 ---
@@ -49,37 +49,42 @@ workloads-app (aus ocp-platform)
 
 | Wer | Was |
 |---|---|
+| Platform Team | `groups/` — Gruppen global definieren und Mitglieder pflegen |
 | Platform Team | `charts/namespace-config/` — Helm Chart pflegen |
 | Platform Team | `apps/<project>/appproject.yaml` — AppProject anlegen |
-| Platform Team | `apps/<project>/groups.yaml` — Projekt-Gruppen und Mitglieder |
 | Platform Team | `apps/<project>/<app>/namespace-config-app.yaml` — Namespace-Config Application |
-| Platform Team | `apps/<project>/<app>/values.yaml` — Werte für Namespace-Konfiguration |
+| Platform Team | `apps/<project>/<app>/values.yaml` — Gruppennamen zuweisen |
 | Platform Team | `apps/<project>/<app>/<app>-app.yaml` — Application auf App-Repo zeigen |
 | Entwickler | Eigenes App-Repo (Helm Chart oder Manifeste) |
 
 ---
 
-## User- und Gruppen-Management
+## Gruppen-Management
 
-Gruppen und ihre Mitglieder werden in Git verwaltet.  
-Passwörter liegen **nicht in Git** — sie werden manuell im HTPasswd-Secret gepflegt.
+Gruppen werden **global** in `groups/` definiert — eine Datei pro Gruppe.  
+Die **Zuweisung** zu Namespaces erfolgt in `apps/<project>/<app>/values.yaml` unter `rbac`.
 
-### Mitglied zu Projekt-Gruppe hinzufügen
-
-**1. User in Git zur Gruppe hinzufügen** (`apps/project-a/groups.yaml`):
-
-```yaml
-users:
-  - vorhandener-user
-  - neuer-entwickler
-```
+### Neue Gruppe anlegen
 
 ```powershell
-git add . && git commit -m "feat(project-a): add neuer-entwickler"
+# Neue Datei in groups/ anlegen (Vorlage: groups/project-a-admins.yaml)
+# Gruppenname in values.yaml der jeweiligen App unter rbac.adminGroups eintragen
+git add . && git commit -m "feat(groups): add new-group"
 git push
 ```
 
-**2. Passwort manuell im Secret ergänzen:**
+### Mitglied zu Gruppe hinzufügen
+
+```powershell
+# groups/<gruppenname>.yaml editieren:
+# users:
+#   - vorhandener-user
+#   - neuer-user
+git add . && git commit -m "feat(groups): add neuer-user to project-a-developers"
+git push
+```
+
+### Passwort für neuen User anlegen (manuell, außerhalb Git)
 
 ```powershell
 oc get secret htpasswd-secret -n openshift-config `
@@ -88,7 +93,7 @@ oc get secret htpasswd-secret -n openshift-config `
   Out-File -FilePath "$env:TEMP\htpasswd" -Encoding utf8NoBOM
 
 # Hash generieren: https://bcrypt-generator.com (Rounds 10)
-Add-Content "$env:TEMP\htpasswd" 'neuer-entwickler:$2a$10$HASH_HIER'
+Add-Content "$env:TEMP\htpasswd" 'neuer-user:$2a$10$HASH_HIER'
 
 oc create secret generic htpasswd-secret `
   --from-file=htpasswd="$env:TEMP\htpasswd" `
@@ -102,71 +107,32 @@ Remove-Item "$env:TEMP\htpasswd"
 
 ## Neues Projekt anlegen
 
-### 1. Verzeichnis und Pflichtdateien anlegen
+### 1. Gruppen anlegen
+
+```powershell
+# groups/project-b-admins.yaml anlegen (Vorlage: groups/project-a-admins.yaml)
+# groups/project-b-developers.yaml anlegen
+```
+
+### 2. Projektverzeichnis und AppProject anlegen
 
 ```powershell
 mkdir apps\project-b
+# appproject.yaml anlegen (Vorlage: apps/project-a/appproject.yaml)
 ```
 
-Folgende Dateien anlegen (Vorlage: `apps/project-a/`):
-- `appproject.yaml` — AppProject `project-b`
-- `groups.yaml` — `project-b-admins`, `project-b-developers`
-
-### 2. Erste App anlegen
+### 3. Erste App anlegen
 
 ```powershell
 mkdir apps\project-b\my-first-app
-```
-
-Folgende Dateien anlegen (Vorlage: `apps/project-a/my-app/`):
-- `namespace-config-app.yaml`
-- `values.yaml`
-- `my-first-app-app.yaml`
-
-### 3. App-Repo in AppProject eintragen
-
-In `apps/project-b/appproject.yaml` unter `sourceRepos`:
-
-```yaml
-sourceRepos:
-  - https://github.com/chriwo42-lang/ocp-workloads.git
-  - https://github.com/chriwo42-lang/my-first-app.git
+# namespace-config-app.yaml, values.yaml, my-first-app-app.yaml anlegen
+# In values.yaml: rbac.adminGroups: [project-b-admins]
 ```
 
 ### 4. Commit & Push
 
 ```powershell
-git add . && git commit -m "feat: add project-b with my-first-app"
-git push
-```
-
-ArgoCD deployt automatisch.
-
----
-
-## Neue App zu bestehendem Projekt hinzufügen
-
-```powershell
-mkdir apps\project-a\second-app
-```
-
-Dateien anlegen (Vorlage: `apps/project-a/my-app/`):
-- `namespace-config-app.yaml`
-- `values.yaml`
-- `second-app-app.yaml`
-
-App-Repo in `apps/project-a/appproject.yaml` unter `sourceRepos` ergänzen:
-
-```yaml
-sourceRepos:
-  - https://github.com/chriwo42-lang/ocp-workloads.git
-  - https://github.com/chriwo42-lang/my-app.git
-  - https://github.com/chriwo42-lang/your-app.git
-  - https://github.com/chriwo42-lang/second-app.git
-```
-
-```powershell
-git add . && git commit -m "feat(project-a): add second-app"
+git add . && git commit -m "feat: add project-b"
 git push
 ```
 
@@ -174,16 +140,26 @@ git push
 
 ## Helm Chart: namespace-config
 
-Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte und Defaults.
+Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte.
 
-| Bereich | Konfigurierbar |
-|---|---|
-| ResourceQuota | Pods, CPU, Memory, Services, Secrets, ConfigMaps |
-| LimitRange | Default-Limits und Requests für Container |
-| NetworkPolicy | Deny-All Basis, Ingress vom Router, zusätzliche Namespaces |
-| RBAC | Admin/Edit/View-RoleBindings für Gruppen und einzelne User |
+Gruppen werden in `values.yaml` nur **referenziert** — sie müssen bereits in `groups/` definiert sein:
+
+```yaml
+rbac:
+  adminGroups:
+    - project-a-admins      # muss in groups/project-a-admins.yaml existieren
+  editGroups:
+    - project-a-developers  # muss in groups/project-a-developers.yaml existieren
+```
 
 ---
+
+## Gruppen
+
+| Gruppe | Mitglieder | Zugewiesen in |
+|---|---|---|
+| project-a-admins | — | project-a-my-app, project-a-your-app |
+| project-a-developers | — | project-a-my-app, project-a-your-app |
 
 ## Projekte
 

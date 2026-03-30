@@ -14,13 +14,11 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: project-a-*
-    - server: https://kubernetes.default.svc
-      namespace: ''
+  # Gruppen werden global via ocp-platform/apps/workloads-groups-app verwaltet
+  # project-a braucht keine Cluster-Ressourcen ausser Namespace
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
-    - group: user.openshift.io
-      kind: Group
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
