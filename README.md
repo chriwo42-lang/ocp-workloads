@@ -41,6 +41,13 @@ ocp-workloads/
 │           └── your-app-app.yaml
 └── charts/
     └── namespace-config/            ← Helm Chart für Namespace-Konfiguration
+        ├── Chart.yaml
+        ├── values.yaml
+        └── templates/
+            ├── namespace.yaml
+            ├── resourcequota.yaml
+            ├── networkpolicy.yaml
+            └── rbac.yaml
 ```
 
 ---
@@ -48,7 +55,7 @@ ocp-workloads/
 ## Sync-Flow
 
 ```
-workloads-app (aus ocp-platform, recurse: true)
+workloads-app (aus ocp-platform, recurse: true auf apps/)
 ├── groups/
 │   ├── project-a/admins.yaml        Wave -1
 │   ├── project-a/developers.yaml    Wave -1
@@ -73,6 +80,9 @@ workloads-app (aus ocp-platform, recurse: true)
         ├── namespace-config-app     Wave  0
         └── your-app-app             Wave  1
 ```
+
+> `charts/` wird **nicht** von `workloads-app` deployt — es wird als Helm-Source
+> direkt in den `namespace-config-app` Applications referenziert.
 
 ---
 
@@ -142,7 +152,7 @@ mkdir apps\groups\project-c
 
 ```powershell
 mkdir apps\project-c\my-first-app
-# apps/project-c/appproject.yaml
+# apps/project-c/appproject.yaml       (Vorlage: apps/project-a/appproject.yaml)
 # apps/project-c/my-first-app/namespace-config-app.yaml
 # apps/project-c/my-first-app/values.yaml
 # apps/project-c/my-first-app/my-first-app-app.yaml
