@@ -1,0 +1,12 @@
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: project-a-viewers
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    # Zuweisung zu Namespaces erfolgt via namespace-config Chart (rbac.viewGroups)
+    # Berechtigungen: view-RoleBinding in allen project-a-* Namespaces
+    # ArgoCD: read-only Zugriff auf Apps in project-a (role: project-a-viewer)
+users: []
+# users:
+#   - readonly-user

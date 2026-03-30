@@ -14,8 +14,6 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: project-a-*
-  # Gruppen werden global via ocp-platform/apps/workloads-groups-app verwaltet
-  # project-a braucht keine Cluster-Ressourcen ausser Namespace
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
@@ -24,8 +22,22 @@ spec:
       kind: '*'
   roles:
     - name: project-a-admin
-      description: Admin-Zugriff auf alle Apps in project-a
+      description: Vollzugriff auf alle Apps in project-a
       policies:
         - p, proj:project-a:project-a-admin, applications, *, project-a/*, allow
       groups:
         - project-a-admins
+    - name: project-a-developer
+      description: Deployment-Rechte auf alle Apps in project-a
+      policies:
+        - p, proj:project-a:project-a-developer, applications, get, project-a/*, allow
+        - p, proj:project-a:project-a-developer, applications, sync, project-a/*, allow
+        - p, proj:project-a:project-a-developer, applications, override, project-a/*, allow
+      groups:
+        - project-a-developers
+    - name: project-a-viewer
+      description: Lesezugriff auf alle Apps in project-a
+      policies:
+        - p, proj:project-a:project-a-viewer, applications, get, project-a/*, allow
+      groups:
+        - project-a-viewers

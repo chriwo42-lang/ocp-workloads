@@ -1,8 +1,6 @@
 # Namespace-Konfiguration für project-a/my-app
-# Überschreibt die Defaults aus charts/namespace-config/values.yaml
-
 namespace: project-a-my-app
-displayName: "Project A – My App"
+displayName: "Project A - My App"
 project: project-a
 
 quota:
@@ -32,6 +30,7 @@ networkPolicy:
   enabled: true
   allowFromIngress: true
   allowFromSameNamespace: true
+  allowEgressSameNamespace: true
   additionalIngressNamespaces: []
 
 rbac:
@@ -39,6 +38,8 @@ rbac:
     - project-a-admins
   editGroups:
     - project-a-developers
-  viewGroups: []
+  viewGroups:
+    - project-a-viewers
   adminUsers: []
   editUsers: []
+  viewUsers: []

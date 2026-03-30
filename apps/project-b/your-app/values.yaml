@@ -1,3 +1,4 @@
+# Namespace-Konfiguration für project-b/your-app
 namespace: project-b-your-app
 displayName: "Project B - Your App"
 project: project-b
@@ -37,7 +38,8 @@ rbac:
     - project-b-admins
   editGroups:
     - project-b-developers
-  viewGroups: []
+  viewGroups:
+    - project-b-viewers
   adminUsers: []
   editUsers: []
   viewUsers: []
