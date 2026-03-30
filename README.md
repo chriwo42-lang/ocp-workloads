@@ -9,15 +9,17 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 
 ```
 ocp-workloads/
-├── groups/                  ← Globale Gruppen-Definitionen (eine Datei pro Gruppe)
-│   ├── project-a-admins.yaml
-│   ├── project-a-developers.yaml
-│   ├── project-a-viewers.yaml
-│   ├── project-b-admins.yaml
-│   ├── project-b-developers.yaml
-│   └── project-b-viewers.yaml
+├── groups/                      ← Globale Gruppen-Definitionen (je Projekt ein Unterverzeichnis)
+│   ├── project-a/
+│   │   ├── admins.yaml
+│   │   ├── developers.yaml
+│   │   └── viewers.yaml
+│   └── project-b/
+│       ├── admins.yaml
+│       ├── developers.yaml
+│       └── viewers.yaml
 ├── charts/
-│   └── namespace-config/    ← Helm Chart für Namespace-Konfiguration
+│   └── namespace-config/        ← Helm Chart für Namespace-Konfiguration
 └── apps/
     ├── project-a/
     │   ├── appproject.yaml
@@ -48,14 +50,14 @@ ocp-workloads/
 ```
 workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
 └── groups/                                 ├── apps/project-a/
-    ├── project-a-admins.yaml  Wave -1      │   ├── appproject.yaml      Wave -1
-    ├── project-a-developers.yaml           │   ├── my-app/
-    ├── project-a-viewers.yaml              │   │   ├── namespace-config  Wave  0
-    ├── project-b-admins.yaml               │   │   └── my-app-app        Wave  1
-    ├── project-b-developers.yaml           │   └── your-app/
-    └── project-b-viewers.yaml             │       ├── namespace-config  Wave  0
-                                            │       └── your-app-app      Wave  1
-                                            └── apps/project-b/
+    ├── project-a/             Wave -1      │   ├── appproject.yaml      Wave -1
+    │   ├── admins.yaml                     │   ├── my-app/
+    │   ├── developers.yaml                 │   │   ├── namespace-config  Wave  0
+    │   └── viewers.yaml                    │   │   └── my-app-app        Wave  1
+    └── project-b/                          │   └── your-app/
+        ├── admins.yaml                     │       ├── namespace-config  Wave  0
+        ├── developers.yaml                 │       └── your-app-app      Wave  1
+        └── viewers.yaml                    └── apps/project-b/
                                                 ├── appproject.yaml      Wave -1
                                                 ├── my-app/
                                                 │   ├── namespace-config  Wave  0
@@ -83,13 +85,13 @@ workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
 
 ## Gruppen-Management
 
-Gruppen werden **global** in `groups/` definiert — eine Datei pro Gruppe.  
+Gruppen werden **global** in `groups/<project>/` definiert — eine Datei pro Rolle.  
 Die **Zuweisung** zu Namespaces erfolgt in `apps/<project>/<app>/values.yaml` unter `rbac`.
 
 ### Neue Gruppe anlegen
 
 ```powershell
-# Neue Datei in groups/ anlegen (Vorlage: groups/project-a-admins.yaml)
+# Neue Datei in groups/<project>/ anlegen (Vorlage: groups/project-a/admins.yaml)
 # Gruppenname in values.yaml der jeweiligen App unter rbac.adminGroups eintragen
 git add . && git commit -m "feat(groups): add new-group"
 git push
@@ -98,7 +100,7 @@ git push
 ### Mitglied zu Gruppe hinzufügen
 
 ```powershell
-# groups/<gruppenname>.yaml editieren:
+# groups/<project>/<rolle>.yaml editieren:
 # users:
 #   - vorhandener-user
 #   - neuer-user
@@ -129,12 +131,13 @@ Remove-Item "$env:TEMP\htpasswd"
 
 ## Neues Projekt anlegen
 
-### 1. Gruppen anlegen (je eine Datei pro Rolle)
+### 1. Gruppen anlegen
 
 ```powershell
-# groups/project-c-admins.yaml    (Vorlage: groups/project-a-admins.yaml)
-# groups/project-c-developers.yaml
-# groups/project-c-viewers.yaml
+mkdir groups\project-c
+# groups/project-c/admins.yaml    (Vorlage: groups/project-a/admins.yaml)
+# groups/project-c/developers.yaml
+# groups/project-c/viewers.yaml
 ```
 
 ### 2. Projektverzeichnis und AppProject anlegen
@@ -166,16 +169,16 @@ git push
 
 Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte.
 
-Gruppen werden in `values.yaml` nur **referenziert** — sie müssen bereits in `groups/` definiert sein:
+Gruppen werden in `values.yaml` nur **referenziert** — sie müssen bereits in `groups/<project>/` definiert sein:
 
 ```yaml
 rbac:
   adminGroups:
-    - project-a-admins      # muss in groups/project-a-admins.yaml existieren
+    - project-a-admins      # definiert in groups/project-a/admins.yaml
   editGroups:
-    - project-a-developers  # muss in groups/project-a-developers.yaml existieren
+    - project-a-developers  # definiert in groups/project-a/developers.yaml
   viewGroups:
-    - project-a-viewers     # muss in groups/project-a-viewers.yaml existieren
+    - project-a-viewers     # definiert in groups/project-a/viewers.yaml
 ```
 
 ---
