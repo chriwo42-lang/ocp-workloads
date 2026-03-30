@@ -9,38 +9,38 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 
 ```
 ocp-workloads/
-├── groups/                      ← Globale Gruppen-Definitionen (je Projekt ein Unterverzeichnis)
+├── apps/
+│   ├── groups/                      ← Globale Gruppen (je Projekt ein Unterverzeichnis)
+│   │   ├── project-a/
+│   │   │   ├── admins.yaml
+│   │   │   ├── developers.yaml
+│   │   │   └── viewers.yaml
+│   │   └── project-b/
+│   │       ├── admins.yaml
+│   │       ├── developers.yaml
+│   │       └── viewers.yaml
 │   ├── project-a/
-│   │   ├── admins.yaml
-│   │   ├── developers.yaml
-│   │   └── viewers.yaml
+│   │   ├── appproject.yaml
+│   │   ├── my-app/
+│   │   │   ├── namespace-config-app.yaml
+│   │   │   ├── values.yaml
+│   │   │   └── my-app-app.yaml
+│   │   └── your-app/
+│   │       ├── namespace-config-app.yaml
+│   │       ├── values.yaml
+│   │       └── your-app-app.yaml
 │   └── project-b/
-│       ├── admins.yaml
-│       ├── developers.yaml
-│       └── viewers.yaml
-├── charts/
-│   └── namespace-config/        ← Helm Chart für Namespace-Konfiguration
-└── apps/
-    ├── project-a/
-    │   ├── appproject.yaml
-    │   ├── my-app/
-    │   │   ├── namespace-config-app.yaml
-    │   │   ├── values.yaml
-    │   │   └── my-app-app.yaml
-    │   └── your-app/
-    │       ├── namespace-config-app.yaml
-    │       ├── values.yaml
-    │       └── your-app-app.yaml
-    └── project-b/
-        ├── appproject.yaml
-        ├── my-app/
-        │   ├── namespace-config-app.yaml
-        │   ├── values.yaml
-        │   └── my-app-app.yaml
-        └── your-app/
-            ├── namespace-config-app.yaml
-            ├── values.yaml
-            └── your-app-app.yaml
+│       ├── appproject.yaml
+│       ├── my-app/
+│       │   ├── namespace-config-app.yaml
+│       │   ├── values.yaml
+│       │   └── my-app-app.yaml
+│       └── your-app/
+│           ├── namespace-config-app.yaml
+│           ├── values.yaml
+│           └── your-app-app.yaml
+└── charts/
+    └── namespace-config/            ← Helm Chart für Namespace-Konfiguration
 ```
 
 ---
@@ -48,23 +48,30 @@ ocp-workloads/
 ## Sync-Flow
 
 ```
-workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
-└── groups/                                 ├── apps/project-a/
-    ├── project-a/             Wave -1      │   ├── appproject.yaml      Wave -1
-    │   ├── admins.yaml                     │   ├── my-app/
-    │   ├── developers.yaml                 │   │   ├── namespace-config  Wave  0
-    │   └── viewers.yaml                    │   │   └── my-app-app        Wave  1
-    └── project-b/                          │   └── your-app/
-        ├── admins.yaml                     │       ├── namespace-config  Wave  0
-        ├── developers.yaml                 │       └── your-app-app      Wave  1
-        └── viewers.yaml                    └── apps/project-b/
-                                                ├── appproject.yaml      Wave -1
-                                                ├── my-app/
-                                                │   ├── namespace-config  Wave  0
-                                                │   └── my-app-app        Wave  1
-                                                └── your-app/
-                                                    ├── namespace-config  Wave  0
-                                                    └── your-app-app      Wave  1
+workloads-app (aus ocp-platform, recurse: true)
+├── groups/
+│   ├── project-a/admins.yaml        Wave -1
+│   ├── project-a/developers.yaml    Wave -1
+│   ├── project-a/viewers.yaml       Wave -1
+│   ├── project-b/admins.yaml        Wave -1
+│   ├── project-b/developers.yaml    Wave -1
+│   └── project-b/viewers.yaml       Wave -1
+├── project-a/
+│   ├── appproject.yaml              Wave -1
+│   ├── my-app/
+│   │   ├── namespace-config-app     Wave  0
+│   │   └── my-app-app               Wave  1
+│   └── your-app/
+│       ├── namespace-config-app     Wave  0
+│       └── your-app-app             Wave  1
+└── project-b/
+    ├── appproject.yaml              Wave -1
+    ├── my-app/
+    │   ├── namespace-config-app     Wave  0
+    │   └── my-app-app               Wave  1
+    └── your-app/
+        ├── namespace-config-app     Wave  0
+        └── your-app-app             Wave  1
 ```
 
 ---
@@ -73,7 +80,7 @@ workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
 
 | Wer | Was |
 |---|---|
-| Platform Team | `groups/` — Gruppen global definieren und Mitglieder pflegen |
+| Platform Team | `apps/groups/` — Gruppen global definieren und Mitglieder pflegen |
 | Platform Team | `charts/namespace-config/` — Helm Chart pflegen |
 | Platform Team | `apps/<project>/appproject.yaml` — AppProject anlegen |
 | Platform Team | `apps/<project>/<app>/namespace-config-app.yaml` — Namespace-Config Application |
@@ -85,22 +92,13 @@ workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
 
 ## Gruppen-Management
 
-Gruppen werden **global** in `groups/<project>/` definiert — eine Datei pro Rolle.  
+Gruppen werden **global** in `apps/groups/<project>/` definiert — eine Datei pro Rolle.  
 Die **Zuweisung** zu Namespaces erfolgt in `apps/<project>/<app>/values.yaml` unter `rbac`.
-
-### Neue Gruppe anlegen
-
-```powershell
-# Neue Datei in groups/<project>/ anlegen (Vorlage: groups/project-a/admins.yaml)
-# Gruppenname in values.yaml der jeweiligen App unter rbac.adminGroups eintragen
-git add . && git commit -m "feat(groups): add new-group"
-git push
-```
 
 ### Mitglied zu Gruppe hinzufügen
 
 ```powershell
-# groups/<project>/<rolle>.yaml editieren:
+# apps/groups/<project>/<rolle>.yaml editieren:
 # users:
 #   - vorhandener-user
 #   - neuer-user
@@ -134,29 +132,23 @@ Remove-Item "$env:TEMP\htpasswd"
 ### 1. Gruppen anlegen
 
 ```powershell
-mkdir groups\project-c
-# groups/project-c/admins.yaml    (Vorlage: groups/project-a/admins.yaml)
-# groups/project-c/developers.yaml
-# groups/project-c/viewers.yaml
+mkdir apps\groups\project-c
+# apps/groups/project-c/admins.yaml    (Vorlage: apps/groups/project-a/admins.yaml)
+# apps/groups/project-c/developers.yaml
+# apps/groups/project-c/viewers.yaml
 ```
 
-### 2. Projektverzeichnis und AppProject anlegen
-
-```powershell
-mkdir apps\project-c
-# appproject.yaml anlegen (Vorlage: apps/project-a/appproject.yaml)
-# Rollen: project-c-admin, project-c-developer, project-c-viewer
-```
-
-### 3. Apps anlegen
+### 2. AppProject und Apps anlegen
 
 ```powershell
 mkdir apps\project-c\my-first-app
-# namespace-config-app.yaml, values.yaml, my-first-app-app.yaml anlegen
-# In values.yaml: rbac.adminGroups, editGroups, viewGroups setzen
+# apps/project-c/appproject.yaml
+# apps/project-c/my-first-app/namespace-config-app.yaml
+# apps/project-c/my-first-app/values.yaml
+# apps/project-c/my-first-app/my-first-app-app.yaml
 ```
 
-### 4. Commit & Push
+### 3. Commit & Push
 
 ```powershell
 git add . && git commit -m "feat: add project-c"
@@ -169,16 +161,16 @@ git push
 
 Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte.
 
-Gruppen werden in `values.yaml` nur **referenziert** — sie müssen bereits in `groups/<project>/` definiert sein:
+Gruppen werden in `values.yaml` nur **referenziert** — sie müssen bereits in `apps/groups/<project>/` definiert sein:
 
 ```yaml
 rbac:
   adminGroups:
-    - project-a-admins      # definiert in groups/project-a/admins.yaml
+    - project-a-admins      # definiert in apps/groups/project-a/admins.yaml
   editGroups:
-    - project-a-developers  # definiert in groups/project-a/developers.yaml
+    - project-a-developers  # definiert in apps/groups/project-a/developers.yaml
   viewGroups:
-    - project-a-viewers     # definiert in groups/project-a/viewers.yaml
+    - project-a-viewers     # definiert in apps/groups/project-a/viewers.yaml
 ```
 
 ---
