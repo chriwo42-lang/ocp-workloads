@@ -84,3 +84,20 @@ subjects:
     name: {{ . }}
     apiGroup: rbac.authorization.k8s.io
 {{- end }}
+
+{{- range .Values.rbac.viewUsers }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ . }}-view
+  namespace: {{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: User
+    name: {{ . }}
+    apiGroup: rbac.authorization.k8s.io
+{{- end }}

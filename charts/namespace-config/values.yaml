@@ -43,7 +43,6 @@ networkPolicy:
   # Eingehender Traffic innerhalb desselben Namespace erlauben
   allowFromSameNamespace: true
   # Ausgehender Traffic innerhalb desselben Namespace erlauben
-  # (z.B. für Service-zu-Service Kommunikation innerhalb der App)
   allowEgressSameNamespace: true
   # Zusätzliche Namespaces von denen eingehender Traffic erlaubt ist
   # (z.B. openshift-monitoring für Prometheus Scraping)
@@ -64,3 +63,5 @@ rbac:
   adminUsers: []
   # Einzelne User mit edit-Rolle
   editUsers: []
+  # Einzelne User mit view-Rolle
+  viewUsers: []
