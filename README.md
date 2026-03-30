@@ -11,16 +11,28 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 ocp-workloads/
 ├── groups/                  ← Globale Gruppen-Definitionen (eine Datei pro Gruppe)
 │   ├── project-a-admins.yaml
-│   └── project-a-developers.yaml
+│   ├── project-a-developers.yaml
+│   ├── project-b-admins.yaml
+│   └── project-b-developers.yaml
 ├── charts/
 │   └── namespace-config/    ← Helm Chart für Namespace-Konfiguration
 └── apps/
-    └── project-a/           ← je Projekt ein Verzeichnis
-        ├── appproject.yaml  ← ArgoCD AppProject (Wave -1)
-        ├── my-app/          ← je App ein Unterverzeichnis
-        │   ├── namespace-config-app.yaml  ← Namespace, Quota, NetPol, RBAC (Wave 0)
-        │   ├── values.yaml                ← referenziert Gruppennamen
-        │   └── my-app-app.yaml            ← Application → App-Repo (Wave 1)
+    ├── project-a/
+    │   ├── appproject.yaml
+    │   ├── my-app/
+    │   │   ├── namespace-config-app.yaml
+    │   │   ├── values.yaml
+    │   │   └── my-app-app.yaml
+    │   └── your-app/
+    │       ├── namespace-config-app.yaml
+    │       ├── values.yaml
+    │       └── your-app-app.yaml
+    └── project-b/
+        ├── appproject.yaml
+        ├── my-app/
+        │   ├── namespace-config-app.yaml
+        │   ├── values.yaml
+        │   └── my-app-app.yaml
         └── your-app/
             ├── namespace-config-app.yaml
             ├── values.yaml
@@ -33,14 +45,22 @@ ocp-workloads/
 
 ```
 workloads-groups-app (aus ocp-platform)     workloads-app (aus ocp-platform)
-└── groups/                                 └── apps/project-a/
-    ├── project-a-admins.yaml  Wave -1          ├── appproject.yaml    Wave -1
-    └── project-a-developers.yaml               ├── my-app/
-                                                │   ├── namespace-config-app  Wave 0
-                                                │   └── my-app-app            Wave 1
+└── groups/                                 ├── apps/project-a/
+    ├── project-a-admins.yaml  Wave -1      │   ├── appproject.yaml      Wave -1
+    ├── project-a-developers.yaml           │   ├── my-app/
+    ├── project-b-admins.yaml               │   │   ├── namespace-config  Wave  0
+    └── project-b-developers.yaml           │   │   └── my-app-app        Wave  1
+                                            │   └── your-app/
+                                            │       ├── namespace-config  Wave  0
+                                            │       └── your-app-app      Wave  1
+                                            └── apps/project-b/
+                                                ├── appproject.yaml      Wave -1
+                                                ├── my-app/
+                                                │   ├── namespace-config  Wave  0
+                                                │   └── my-app-app        Wave  1
                                                 └── your-app/
-                                                    ├── namespace-config-app  Wave 0
-                                                    └── your-app-app          Wave 1
+                                                    ├── namespace-config  Wave  0
+                                                    └── your-app-app      Wave  1
 ```
 
 ---
@@ -110,29 +130,28 @@ Remove-Item "$env:TEMP\htpasswd"
 ### 1. Gruppen anlegen
 
 ```powershell
-# groups/project-b-admins.yaml anlegen (Vorlage: groups/project-a-admins.yaml)
-# groups/project-b-developers.yaml anlegen
+# groups/project-c-admins.yaml anlegen (Vorlage: groups/project-a-admins.yaml)
+# groups/project-c-developers.yaml anlegen
 ```
 
 ### 2. Projektverzeichnis und AppProject anlegen
 
 ```powershell
-mkdir apps\project-b
+mkdir apps\project-c
 # appproject.yaml anlegen (Vorlage: apps/project-a/appproject.yaml)
 ```
 
-### 3. Erste App anlegen
+### 3. Apps anlegen
 
 ```powershell
-mkdir apps\project-b\my-first-app
+mkdir apps\project-c\my-first-app
 # namespace-config-app.yaml, values.yaml, my-first-app-app.yaml anlegen
-# In values.yaml: rbac.adminGroups: [project-b-admins]
 ```
 
 ### 4. Commit & Push
 
 ```powershell
-git add . && git commit -m "feat: add project-b"
+git add . && git commit -m "feat: add project-c"
 git push
 ```
 
@@ -159,10 +178,13 @@ rbac:
 | Gruppe | Mitglieder | Zugewiesen in |
 |---|---|---|
 | project-a-admins | — | project-a-my-app, project-a-your-app |
-| project-a-developers | — | project-a-my-app, project-a-your-app |
+| project-a-developers | developer | project-a-my-app, project-a-your-app |
+| project-b-admins | — | project-b-my-app, project-b-your-app |
+| project-b-developers | developer | project-b-my-app, project-b-your-app |
 
 ## Projekte
 
 | Projekt | Gruppen | Apps |
 |---|---|---|
 | project-a | project-a-admins, project-a-developers | my-app, your-app |
+| project-b | project-b-admins, project-b-developers | my-app, your-app |

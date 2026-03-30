@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: project-b-my-app
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: project-b
+  source:
+    repoURL: https://github.com/chriwo42-lang/my-app.git
+    targetRevision: main
+    path: helm
+    helm:
+      releaseName: my-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: project-b-my-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

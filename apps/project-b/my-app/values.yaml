@@ -1,0 +1,43 @@
+namespace: project-b-my-app
+displayName: "Project B - My App"
+project: project-b
+
+quota:
+  enabled: true
+  pods: "10"
+  limitsCpu: "2"
+  limitsMemory: "4Gi"
+  requestsCpu: "500m"
+  requestsMemory: "1Gi"
+  services: "10"
+  secrets: "20"
+  configmaps: "20"
+
+limitRange:
+  enabled: true
+  default:
+    cpu: "200m"
+    memory: "256Mi"
+  defaultRequest:
+    cpu: "50m"
+    memory: "64Mi"
+  max:
+    cpu: "1"
+    memory: "2Gi"
+
+networkPolicy:
+  enabled: true
+  allowFromIngress: true
+  allowFromSameNamespace: true
+  allowEgressSameNamespace: true
+  additionalIngressNamespaces: []
+
+rbac:
+  adminGroups:
+    - project-b-admins
+  editGroups:
+    - project-b-developers
+  viewGroups: []
+  adminUsers: []
+  editUsers: []
+  viewUsers: []
