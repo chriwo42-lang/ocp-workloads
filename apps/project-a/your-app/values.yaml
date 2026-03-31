@@ -1,7 +1,12 @@
-# Namespace-Konfiguration für project-a/your-app
-namespace: project-a-your-app
-displayName: "Project A - Your App"
+# App-Konfiguration für project-a/your-app
+app: your-app
 project: project-a
+displayName: "Project A - Your App"
+
+appRepo:
+  url: https://github.com/chriwo42-lang/your-app.git
+  targetRevision: main
+  path: helm
 
 quota:
   enabled: true

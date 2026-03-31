@@ -1,22 +1,21 @@
+{{- $namespace := .Values.namespace | default (printf "%s-%s" .Values.project .Values.app) }}
 {{- if .Values.networkPolicy.enabled }}
-# Deny-All als Basis: kein eingehender oder ausgehender Traffic standardmäßig erlaubt
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: deny-all
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $namespace }}
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
     - Egress
 ---
-# Egress: DNS immer erlauben (Port 53 UDP/TCP)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-egress-dns
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -29,12 +28,11 @@ spec:
           protocol: TCP
 ---
 {{- if .Values.networkPolicy.allowEgressSameNamespace }}
-# Egress: Ausgehender Traffic innerhalb desselben Namespace erlauben
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-egress-same-namespace
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -45,12 +43,11 @@ spec:
 ---
 {{- end }}
 {{- if .Values.networkPolicy.allowFromSameNamespace }}
-# Ingress: Traffic innerhalb desselben Namespace erlauben
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-same-namespace
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -61,12 +58,11 @@ spec:
 ---
 {{- end }}
 {{- if .Values.networkPolicy.allowFromIngress }}
-# Ingress: Traffic vom OpenShift Ingress (Router) erlauben
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-from-openshift-ingress
-  namespace: {{ .Values.namespace }}
+  namespace: {{ $namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -79,12 +75,11 @@ spec:
 ---
 {{- end }}
 {{- range .Values.networkPolicy.additionalIngressNamespaces }}
-# Ingress: Traffic aus zusätzlichem Namespace {{ . }} erlauben
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-from-{{ . }}
-  namespace: {{ $.Values.namespace }}
+  namespace: {{ $namespace }}
 spec:
   podSelector: {}
   policyTypes:

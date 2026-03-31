@@ -1,0 +1,11 @@
+# AppProject-Konfiguration für project-a
+project: project-a
+description: "Project A – Applikationen und Namespace-Konfiguration"
+
+sourceRepos:
+  - https://github.com/chriwo42-lang/ocp-workloads.git
+  - https://github.com/chriwo42-lang/my-app.git
+  - https://github.com/chriwo42-lang/your-app.git
+
+adminGroups:
+  - cluster-admins

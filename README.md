@@ -14,34 +14,38 @@ ocp-workloads/
 │   │   ├── team-a.yaml
 │   │   └── team-b.yaml
 │   ├── project-a/
-│   │   ├── appproject.yaml
+│   │   ├── appproject-app.yaml      ← Application → project-config Chart
+│   │   ├── appproject-values.yaml   ← project-a: name, sourceRepos
 │   │   ├── my-app/
-│   │   │   ├── namespace-config-app.yaml
-│   │   │   ├── values.yaml          ← Team-Zuweisung: adminGroups, editGroups, viewGroups
-│   │   │   └── my-app-app.yaml
+│   │   │   ├── app.yaml             ← Application → app-config Chart
+│   │   │   └── values.yaml          ← app, project, appRepo, quota, rbac, ...
 │   │   └── your-app/
-│   │       ├── namespace-config-app.yaml
-│   │       ├── values.yaml
-│   │       └── your-app-app.yaml
+│   │       ├── app.yaml
+│   │       └── values.yaml
 │   └── project-b/
-│       ├── appproject.yaml
+│       ├── appproject-app.yaml
+│       ├── appproject-values.yaml
 │       ├── my-app/
-│       │   ├── namespace-config-app.yaml
-│       │   ├── values.yaml
-│       │   └── my-app-app.yaml
+│       │   ├── app.yaml
+│       │   └── values.yaml
 │       └── your-app/
-│           ├── namespace-config-app.yaml
-│           ├── values.yaml
-│           └── your-app-app.yaml
+│           ├── app.yaml
+│           └── values.yaml
 └── charts/
-    └── namespace-config/            ← Helm Chart für Namespace-Konfiguration
+    ├── app-config/                  ← Helm Chart: Namespace, Quota, NetPol, RBAC
+    │   ├── Chart.yaml               │  + ArgoCD Application für das App-Repo
+    │   ├── values.yaml
+    │   └── templates/
+    │       ├── namespace.yaml
+    │       ├── resourcequota.yaml
+    │       ├── networkpolicy.yaml
+    │       ├── rbac.yaml
+    │       └── application.yaml
+    └── project-config/              ← Helm Chart: ArgoCD AppProject
         ├── Chart.yaml
         ├── values.yaml
         └── templates/
-            ├── namespace.yaml
-            ├── resourcequota.yaml
-            ├── networkpolicy.yaml
-            └── rbac.yaml
+            └── appproject.yaml
 ```
 
 ---
@@ -54,25 +58,23 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 │   ├── team-a.yaml                  Wave -1
 │   └── team-b.yaml                  Wave -1
 ├── project-a/
-│   ├── appproject.yaml              Wave -1
+│   ├── appproject-app.yaml          Wave -1  → deployt AppProject via project-config Chart
 │   ├── my-app/
-│   │   ├── namespace-config-app     Wave  0
-│   │   └── my-app-app               Wave  1
+│   │   └── app.yaml                 Wave  0  → deployt via app-config Chart:
+│   │                                           Namespace, Quota, NetPol, RBAC
+│   │                                           + Application für App-Repo
 │   └── your-app/
-│       ├── namespace-config-app     Wave  0
-│       └── your-app-app             Wave  1
+│       └── app.yaml                 Wave  0
 └── project-b/
-    ├── appproject.yaml              Wave -1
+    ├── appproject-app.yaml          Wave -1
     ├── my-app/
-    │   ├── namespace-config-app     Wave  0
-    │   └── my-app-app               Wave  1
+    │   └── app.yaml                 Wave  0
     └── your-app/
-        ├── namespace-config-app     Wave  0
-        └── your-app-app             Wave  1
+        └── app.yaml                 Wave  0
 ```
 
-> `charts/` wird **nicht** von `workloads-app` deployt — es wird als Helm-Source
-> direkt in den `namespace-config-app` Applications referenziert.
+> `charts/` wird **nicht** von `workloads-app` deployt — die Charts werden als
+> Helm-Source direkt in den `app.yaml` / `appproject-app.yaml` referenziert.
 
 ---
 
@@ -81,11 +83,9 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 | Wer | Was |
 |---|---|
 | Platform Team | `apps/groups/` — Teams und Mitglieder pflegen |
-| Platform Team | `charts/namespace-config/` — Helm Chart pflegen |
-| Platform Team | `apps/<project>/appproject.yaml` — AppProject anlegen |
-| Platform Team | `apps/<project>/<app>/namespace-config-app.yaml` — Namespace-Config Application |
-| Platform Team | `apps/<project>/<app>/values.yaml` — Team-Zuweisung (admin/edit/view) |
-| Platform Team | `apps/<project>/<app>/<app>-app.yaml` — Application auf App-Repo zeigen |
+| Platform Team | `charts/` — Helm Charts pflegen |
+| Platform Team | `apps/<project>/appproject-app.yaml` + `appproject-values.yaml` |
+| Platform Team | `apps/<project>/<app>/app.yaml` + `values.yaml` |
 | Entwickler | Eigenes App-Repo (Helm Chart oder Manifeste) |
 
 ---
@@ -94,17 +94,6 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 
 Teams werden **global** in `apps/groups/` definiert — eine Datei pro Team.  
 Die **Zuweisung** als admin/editor/viewer erfolgt je App in `values.yaml` unter `rbac`.
-
-### Konzept
-
-```
-apps/groups/team-a.yaml        ← Team-Definition (wer ist Mitglied)
-apps/project-a/my-app/values.yaml:
-  rbac:
-    adminGroups: [team-a]      ← team-a ist Admin in diesem Namespace
-    editGroups:  [team-b]      ← team-b ist Editor
-    viewGroups:  []
-```
 
 ### Neues Team anlegen
 
@@ -117,26 +106,9 @@ git push
 ### Mitglied zu Team hinzufügen
 
 ```powershell
-# apps/groups/team-a.yaml editieren:
-# users:
-#   - vorhandener-user
-#   - neuer-user
+# apps/groups/team-a.yaml editieren
 git add . && git commit -m "feat(groups): add neuer-user to team-a"
 git push
-```
-
-### Team einer App zuweisen
-
-In `apps/<project>/<app>/values.yaml`:
-
-```yaml
-rbac:
-  adminGroups:
-    - team-a    # admin-RoleBinding im Namespace
-  editGroups:
-    - team-b    # edit-RoleBinding im Namespace
-  viewGroups:
-    - team-c    # view-RoleBinding im Namespace
 ```
 
 ### Passwort für neuen User anlegen (manuell, außerhalb Git)
@@ -147,7 +119,6 @@ oc get secret htpasswd-secret -n openshift-config `
   [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_)) | `
   Out-File -FilePath "$env:TEMP\htpasswd" -Encoding utf8NoBOM
 
-# Hash generieren: https://bcrypt-generator.com (Rounds 10)
 Add-Content "$env:TEMP\htpasswd" 'neuer-user:$2a$10$HASH_HIER'
 
 oc create secret generic htpasswd-secret `
@@ -162,40 +133,75 @@ Remove-Item "$env:TEMP\htpasswd"
 
 ## Neues Projekt anlegen
 
-### 1. AppProject und Apps anlegen
+### 1. AppProject anlegen
 
 ```powershell
-mkdir apps\project-c\my-first-app
-# apps/project-c/appproject.yaml       (Vorlage: apps/project-a/appproject.yaml)
-# apps/project-c/my-first-app/namespace-config-app.yaml
-# apps/project-c/my-first-app/values.yaml  ← Teams unter rbac zuweisen
-# apps/project-c/my-first-app/my-first-app-app.yaml
+mkdir apps\project-c
+
+# appproject-app.yaml  (Vorlage: apps/project-a/appproject-app.yaml)
+# appproject-values.yaml:
+#   project: project-c
+#   sourceRepos:
+#     - https://github.com/chriwo42-lang/ocp-workloads.git
+#     - https://github.com/chriwo42-lang/new-app.git
 ```
 
-### 2. Commit & Push
+### 2. App anlegen
 
 ```powershell
-git add . && git commit -m "feat: add project-c"
+mkdir apps\project-c\new-app
+
+# app.yaml     (Vorlage: apps/project-a/my-app/app.yaml)
+#   → destination.namespace: project-c-new-app anpassen
+# values.yaml:
+#   app: new-app
+#   project: project-c
+#   appRepo:
+#     url: https://github.com/chriwo42-lang/new-app.git
+#   rbac:
+#     adminGroups: [team-a]
+#     editGroups:  [team-b]
+```
+
+### 3. Commit & Push
+
+```powershell
+git add . && git commit -m "feat: add project-c with new-app"
 git push
 ```
 
-> Neue Teams bei Bedarf vorher in `apps/groups/` anlegen.
-
 ---
 
-## Helm Chart: namespace-config
+## Helm Charts
 
-Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte.
+### `charts/app-config`
 
-Teams werden in `values.yaml` nur **referenziert** — sie müssen bereits in `apps/groups/` definiert sein:
+Deployt direkt in den Ziel-Namespace:
+- `Namespace` mit Labels und Annotations
+- `ResourceQuota` + `LimitRange`
+- `NetworkPolicy` (Deny-All Basis, konfigurierbare Ausnahmen)
+- `RoleBindings` für Teams (admin/edit/view)
+- ArgoCD `Application` für das App-Repo der Entwickler
 
-```yaml
-rbac:
-  adminGroups:
-    - team-a    # definiert in apps/groups/team-a.yaml
-  editGroups:
-    - team-b    # definiert in apps/groups/team-b.yaml
-```
+Konfigurierbar via `values.yaml`:
+
+| Parameter | Beschreibung | Pflicht |
+|---|---|---|
+| `app` | App-Name | ✅ |
+| `project` | Projektname | ✅ |
+| `appRepo.url` | Git-URL des App-Repos | ✅ |
+| `appRepo.targetRevision` | Branch/Tag (Default: main) | — |
+| `appRepo.path` | Pfad zum Helm Chart (Default: helm) | — |
+| `displayName` | Anzeigename für den Namespace | — |
+| `quota.*` | ResourceQuota Werte | — |
+| `limitRange.*` | LimitRange Werte | — |
+| `networkPolicy.*` | NetworkPolicy Konfiguration | — |
+| `rbac.*` | Team-Zuweisungen | — |
+
+### `charts/project-config`
+
+Generiert ein ArgoCD `AppProject`. Konfigurierbar via `appproject-values.yaml`:
+`project`, `description`, `sourceRepos`, `adminGroups`.
 
 ---
 

@@ -1,0 +1,18 @@
+{{- if not .Values.app }}
+  {{- fail "app ist ein Pflichtfeld und muss in values.yaml gesetzt werden" }}
+{{- end }}
+{{- if not .Values.project }}
+  {{- fail "project ist ein Pflichtfeld und muss in values.yaml gesetzt werden" }}
+{{- end }}
+{{- $namespace := .Values.namespace | default (printf "%s-%s" .Values.project .Values.app) }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $namespace }}
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/part-of: {{ .Values.project }}
+  annotations:
+    {{- if .Values.displayName }}
+    openshift.io/display-name: {{ .Values.displayName | quote }}
+    {{- end }}

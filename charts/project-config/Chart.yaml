@@ -1,0 +1,8 @@
+apiVersion: v2
+name: project-config
+description: >
+  Helm Chart für standardisierte ArgoCD AppProject-Konfiguration.
+  Generiert ein AppProject mit konsistenter RBAC-Struktur.
+  Wird von jeder App als Helm-Source in ArgoCD referenziert.
+type: application
+version: 1.0.0

@@ -1,25 +1,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: project-a-my-app-namespace
+  name: project-b-your-app-config
   namespace: openshift-gitops
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: project-a
+  project: platform
   sources:
     - repoURL: https://github.com/chriwo42-lang/ocp-workloads.git
       targetRevision: main
-      path: charts/namespace-config
+      path: charts/app-config
       helm:
         valueFiles:
-          - $values/apps/project-a/my-app/values.yaml
+          - $values/apps/project-b/your-app/values.yaml
     - repoURL: https://github.com/chriwo42-lang/ocp-workloads.git
       targetRevision: main
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: project-a-my-app
+    namespace: project-b-your-app
   syncPolicy:
     automated:
       prune: true

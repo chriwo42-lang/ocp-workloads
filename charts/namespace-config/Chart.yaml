@@ -1,9 +1,0 @@
-apiVersion: v2
-name: namespace-config
-description: >
-  Helm Chart für standardisierte Namespace-Konfiguration.
-  Stellt Templates für Namespace, ResourceQuota, LimitRange,
-  NetworkPolicy und RBAC bereit.
-  Wird von jeder App als Helm-Source in ArgoCD referenziert.
-type: application
-version: 1.0.0

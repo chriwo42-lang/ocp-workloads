@@ -1,9 +1,10 @@
+{{- $namespace := .Values.namespace | default (printf "%s-%s" .Values.project .Values.app) }}
 {{- if .Values.quota.enabled }}
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: {{ .Values.namespace }}-quota
-  namespace: {{ .Values.namespace }}
+  name: {{ $namespace }}-quota
+  namespace: {{ $namespace }}
 spec:
   hard:
     pods: {{ .Values.quota.pods | quote }}
@@ -20,8 +21,8 @@ spec:
 apiVersion: v1
 kind: LimitRange
 metadata:
-  name: {{ .Values.namespace }}-limitrange
-  namespace: {{ .Values.namespace }}
+  name: {{ $namespace }}-limitrange
+  namespace: {{ $namespace }}
 spec:
   limits:
     - type: Container

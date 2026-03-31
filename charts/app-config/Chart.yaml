@@ -1,0 +1,8 @@
+apiVersion: v2
+name: app-config
+description: >
+  Helm Chart für standardisierte App-Konfiguration.
+  Deployt direkt: Namespace, ResourceQuota, LimitRange, NetworkPolicy, RBAC
+  sowie eine ArgoCD Application für das App-Repo der Entwickler.
+type: application
+version: 2.0.0

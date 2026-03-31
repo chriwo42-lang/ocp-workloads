@@ -1,0 +1,36 @@
+{{- if not .Values.project }}
+  {{- fail "project ist ein Pflichtfeld und muss in appproject-values.yaml gesetzt werden" }}
+{{- end }}
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.project }}
+  namespace: openshift-gitops
+  annotations:
+    # Wave -1: AppProject muss vor allen Applications existieren die es referenzieren
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: {{ .Values.description | default (printf "%s – Applikationen und Namespace-Konfiguration" .Values.project) | quote }}
+  sourceRepos:
+    {{- range .Values.sourceRepos }}
+    - {{ . | quote }}
+    {{- end }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: {{ .Values.project }}-*
+  # Nur Namespace-Ressourcen auf Cluster-Ebene erlaubt
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: {{ .Values.project }}-admin
+      description: {{ printf "Vollzugriff auf alle ArgoCD Apps in %s" .Values.project | quote }}
+      policies:
+        - {{ printf "p, proj:%s:%s-admin, applications, *, %s/*, allow" .Values.project .Values.project .Values.project }}
+      groups:
+        {{- range .Values.adminGroups }}
+        - {{ . }}
+        {{- end }}
