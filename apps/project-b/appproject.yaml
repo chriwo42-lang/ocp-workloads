@@ -22,22 +22,8 @@ spec:
       kind: '*'
   roles:
     - name: project-b-admin
-      description: Vollzugriff auf alle Apps in project-b
+      description: Vollzugriff auf alle ArgoCD Apps in project-b (nur cluster-admins)
       policies:
         - p, proj:project-b:project-b-admin, applications, *, project-b/*, allow
       groups:
-        - project-b-admins
-    - name: project-b-developer
-      description: Deployment-Rechte auf alle Apps in project-b
-      policies:
-        - p, proj:project-b:project-b-developer, applications, get, project-b/*, allow
-        - p, proj:project-b:project-b-developer, applications, sync, project-b/*, allow
-        - p, proj:project-b:project-b-developer, applications, override, project-b/*, allow
-      groups:
-        - project-b-developers
-    - name: project-b-viewer
-      description: Lesezugriff auf alle Apps in project-b
-      policies:
-        - p, proj:project-b:project-b-viewer, applications, get, project-b/*, allow
-      groups:
-        - project-b-viewers
+        - cluster-admins

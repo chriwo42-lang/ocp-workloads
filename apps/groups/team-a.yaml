@@ -1,0 +1,11 @@
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: team-a
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    # Team-A Mitglieder.
+    # Zuweisung zu Namespaces erfolgt via namespace-config Chart:
+    # rbac.adminGroups / rbac.editGroups / rbac.viewGroups in values.yaml der jeweiligen App.
+users:
+  - developer

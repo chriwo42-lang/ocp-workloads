@@ -35,11 +35,10 @@ networkPolicy:
 
 rbac:
   adminGroups:
-    - project-b-admins
+    - team-a
   editGroups:
-    - project-b-developers
-  viewGroups:
-    - project-b-viewers
+    - team-b
+  viewGroups: []
   adminUsers: []
   editUsers: []
   viewUsers: []

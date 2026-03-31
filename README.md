@@ -10,20 +10,14 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 ```
 ocp-workloads/
 ├── apps/
-│   ├── groups/                      ← Globale Gruppen (je Projekt ein Unterverzeichnis)
-│   │   ├── project-a/
-│   │   │   ├── admins.yaml
-│   │   │   ├── developers.yaml
-│   │   │   └── viewers.yaml
-│   │   └── project-b/
-│   │       ├── admins.yaml
-│   │       ├── developers.yaml
-│   │       └── viewers.yaml
+│   ├── groups/                      ← Team-Definitionen (eine Datei pro Team)
+│   │   ├── team-a.yaml
+│   │   └── team-b.yaml
 │   ├── project-a/
 │   │   ├── appproject.yaml
 │   │   ├── my-app/
 │   │   │   ├── namespace-config-app.yaml
-│   │   │   ├── values.yaml
+│   │   │   ├── values.yaml          ← Team-Zuweisung: adminGroups, editGroups, viewGroups
 │   │   │   └── my-app-app.yaml
 │   │   └── your-app/
 │   │       ├── namespace-config-app.yaml
@@ -57,12 +51,8 @@ ocp-workloads/
 ```
 workloads-app (aus ocp-platform, recurse: true auf apps/)
 ├── groups/
-│   ├── project-a/admins.yaml        Wave -1
-│   ├── project-a/developers.yaml    Wave -1
-│   ├── project-a/viewers.yaml       Wave -1
-│   ├── project-b/admins.yaml        Wave -1
-│   ├── project-b/developers.yaml    Wave -1
-│   └── project-b/viewers.yaml       Wave -1
+│   ├── team-a.yaml                  Wave -1
+│   └── team-b.yaml                  Wave -1
 ├── project-a/
 │   ├── appproject.yaml              Wave -1
 │   ├── my-app/
@@ -90,30 +80,63 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 
 | Wer | Was |
 |---|---|
-| Platform Team | `apps/groups/` — Gruppen global definieren und Mitglieder pflegen |
+| Platform Team | `apps/groups/` — Teams und Mitglieder pflegen |
 | Platform Team | `charts/namespace-config/` — Helm Chart pflegen |
 | Platform Team | `apps/<project>/appproject.yaml` — AppProject anlegen |
 | Platform Team | `apps/<project>/<app>/namespace-config-app.yaml` — Namespace-Config Application |
-| Platform Team | `apps/<project>/<app>/values.yaml` — Gruppennamen zuweisen |
+| Platform Team | `apps/<project>/<app>/values.yaml` — Team-Zuweisung (admin/edit/view) |
 | Platform Team | `apps/<project>/<app>/<app>-app.yaml` — Application auf App-Repo zeigen |
 | Entwickler | Eigenes App-Repo (Helm Chart oder Manifeste) |
 
 ---
 
-## Gruppen-Management
+## Team-Management
 
-Gruppen werden **global** in `apps/groups/<project>/` definiert — eine Datei pro Rolle.  
-Die **Zuweisung** zu Namespaces erfolgt in `apps/<project>/<app>/values.yaml` unter `rbac`.
+Teams werden **global** in `apps/groups/` definiert — eine Datei pro Team.  
+Die **Zuweisung** als admin/editor/viewer erfolgt je App in `values.yaml` unter `rbac`.
 
-### Mitglied zu Gruppe hinzufügen
+### Konzept
+
+```
+apps/groups/team-a.yaml        ← Team-Definition (wer ist Mitglied)
+apps/project-a/my-app/values.yaml:
+  rbac:
+    adminGroups: [team-a]      ← team-a ist Admin in diesem Namespace
+    editGroups:  [team-b]      ← team-b ist Editor
+    viewGroups:  []
+```
+
+### Neues Team anlegen
 
 ```powershell
-# apps/groups/<project>/<rolle>.yaml editieren:
+# apps/groups/team-c.yaml anlegen (Vorlage: apps/groups/team-a.yaml)
+git add . && git commit -m "feat(groups): add team-c"
+git push
+```
+
+### Mitglied zu Team hinzufügen
+
+```powershell
+# apps/groups/team-a.yaml editieren:
 # users:
 #   - vorhandener-user
 #   - neuer-user
-git add . && git commit -m "feat(groups): add neuer-user to project-a-developers"
+git add . && git commit -m "feat(groups): add neuer-user to team-a"
 git push
+```
+
+### Team einer App zuweisen
+
+In `apps/<project>/<app>/values.yaml`:
+
+```yaml
+rbac:
+  adminGroups:
+    - team-a    # admin-RoleBinding im Namespace
+  editGroups:
+    - team-b    # edit-RoleBinding im Namespace
+  viewGroups:
+    - team-c    # view-RoleBinding im Namespace
 ```
 
 ### Passwort für neuen User anlegen (manuell, außerhalb Git)
@@ -139,31 +162,24 @@ Remove-Item "$env:TEMP\htpasswd"
 
 ## Neues Projekt anlegen
 
-### 1. Gruppen anlegen
-
-```powershell
-mkdir apps\groups\project-c
-# apps/groups/project-c/admins.yaml    (Vorlage: apps/groups/project-a/admins.yaml)
-# apps/groups/project-c/developers.yaml
-# apps/groups/project-c/viewers.yaml
-```
-
-### 2. AppProject und Apps anlegen
+### 1. AppProject und Apps anlegen
 
 ```powershell
 mkdir apps\project-c\my-first-app
 # apps/project-c/appproject.yaml       (Vorlage: apps/project-a/appproject.yaml)
 # apps/project-c/my-first-app/namespace-config-app.yaml
-# apps/project-c/my-first-app/values.yaml
+# apps/project-c/my-first-app/values.yaml  ← Teams unter rbac zuweisen
 # apps/project-c/my-first-app/my-first-app-app.yaml
 ```
 
-### 3. Commit & Push
+### 2. Commit & Push
 
 ```powershell
 git add . && git commit -m "feat: add project-c"
 git push
 ```
+
+> Neue Teams bei Bedarf vorher in `apps/groups/` anlegen.
 
 ---
 
@@ -171,34 +187,28 @@ git push
 
 Siehe [charts/namespace-config/values.yaml](charts/namespace-config/values.yaml) für alle Werte.
 
-Gruppen werden in `values.yaml` nur **referenziert** — sie müssen bereits in `apps/groups/<project>/` definiert sein:
+Teams werden in `values.yaml` nur **referenziert** — sie müssen bereits in `apps/groups/` definiert sein:
 
 ```yaml
 rbac:
   adminGroups:
-    - project-a-admins      # definiert in apps/groups/project-a/admins.yaml
+    - team-a    # definiert in apps/groups/team-a.yaml
   editGroups:
-    - project-a-developers  # definiert in apps/groups/project-a/developers.yaml
-  viewGroups:
-    - project-a-viewers     # definiert in apps/groups/project-a/viewers.yaml
+    - team-b    # definiert in apps/groups/team-b.yaml
 ```
 
 ---
 
-## Gruppen
+## Teams
 
-| Gruppe | ArgoCD-Rolle | OpenShift-Rolle | Mitglieder | Namespaces |
-|---|---|---|---|---|
-| project-a-admins | project-a-admin | admin | — | project-a-* |
-| project-a-developers | project-a-developer | edit | developer | project-a-* |
-| project-a-viewers | project-a-viewer | view | — | project-a-* |
-| project-b-admins | project-b-admin | admin | — | project-b-* |
-| project-b-developers | project-b-developer | edit | developer | project-b-* |
-| project-b-viewers | project-b-viewer | view | — | project-b-* |
+| Team | Mitglieder |
+|---|---|
+| team-a | developer |
+| team-b | — |
 
 ## Projekte
 
-| Projekt | Gruppen | Apps |
-|---|---|---|
-| project-a | project-a-admins, project-a-developers, project-a-viewers | my-app, your-app |
-| project-b | project-b-admins, project-b-developers, project-b-viewers | my-app, your-app |
+| Projekt | Apps | team-a | team-b |
+|---|---|---|---|
+| project-a | my-app, your-app | admin | edit |
+| project-b | my-app, your-app | admin | edit |
