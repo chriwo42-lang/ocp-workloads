@@ -15,7 +15,7 @@ ocp-workloads/
 │   │   └── team-b.yaml
 │   ├── project-a/
 │   │   ├── appproject-app.yaml      ← Application → project-config Chart
-│   │   ├── appproject-values.yaml   ← project-a: name, sourceRepos
+│   │   ├── appproject-values.yaml   ← project, sourceRepos, Rollen-Teams
 │   │   ├── my-app/
 │   │   │   ├── app.yaml             ← Application → app-config Chart
 │   │   │   └── values.yaml          ← app, project, appRepo, quota, rbac, ...
@@ -41,7 +41,7 @@ ocp-workloads/
     │       ├── networkpolicy.yaml
     │       ├── rbac.yaml
     │       └── application.yaml
-    └── project-config/              ← Helm Chart: ArgoCD AppProject
+    └── project-config/              ← Helm Chart: ArgoCD AppProject mit Rollen
         ├── Chart.yaml
         ├── values.yaml
         └── templates/
@@ -78,6 +78,22 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 
 ---
 
+## Berechtigungskonzept
+
+Zwei unabhängige Berechtigungsebenen:
+
+| Ebene | Was | Konfiguriert in |
+|---|---|---|
+| **OpenShift** | Namespace-Zugriff (kubectl/oc) | `app/values.yaml` → `rbac.*` |
+| **ArgoCD** | UI-Zugriff auf Applications | `appproject-values.yaml` → `developerTeams`, `viewerTeams` |
+
+```
+team-a → OpenShift: admin in project-a-my-app (via rbac.adminGroups)
+team-a → ArgoCD:    developer in project-a     (via developerTeams)
+```
+
+---
+
 ## Verantwortlichkeiten
 
 | Wer | Was |
@@ -93,7 +109,7 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 ## Team-Management
 
 Teams werden **global** in `apps/groups/` definiert — eine Datei pro Team.  
-Die **Zuweisung** als admin/editor/viewer erfolgt je App in `values.yaml` unter `rbac`.
+Die **Zuweisung** erfolgt auf zwei Ebenen je App bzw. Projekt.
 
 ### Neues Team anlegen
 
@@ -144,6 +160,8 @@ mkdir apps\project-c
 #   sourceRepos:
 #     - https://github.com/chriwo42-lang/ocp-workloads.git
 #     - https://github.com/chriwo42-lang/new-app.git
+#   developerTeams: [team-a]
+#   viewerTeams: []
 ```
 
 ### 2. App anlegen
@@ -151,7 +169,7 @@ mkdir apps\project-c
 ```powershell
 mkdir apps\project-c\new-app
 
-# app.yaml     (Vorlage: apps/project-a/my-app/app.yaml)
+# app.yaml  (Vorlage: apps/project-a/my-app/app.yaml)
 #   → destination.namespace: project-c-new-app anpassen
 # values.yaml:
 #   app: new-app
@@ -180,7 +198,7 @@ Deployt direkt in den Ziel-Namespace:
 - `Namespace` mit Labels und Annotations
 - `ResourceQuota` + `LimitRange`
 - `NetworkPolicy` (Deny-All Basis, konfigurierbare Ausnahmen)
-- `RoleBindings` für Teams (admin/edit/view)
+- `RoleBindings` für Teams (admin/edit/view im OpenShift Namespace)
 - ArgoCD `Application` für das App-Repo der Entwickler
 
 Konfigurierbar via `values.yaml`:
@@ -196,12 +214,32 @@ Konfigurierbar via `values.yaml`:
 | `quota.*` | ResourceQuota Werte | — |
 | `limitRange.*` | LimitRange Werte | — |
 | `networkPolicy.*` | NetworkPolicy Konfiguration | — |
-| `rbac.*` | Team-Zuweisungen | — |
+| `rbac.*` | OpenShift Team-Zuweisungen (admin/edit/view im Namespace) | — |
 
 ### `charts/project-config`
 
-Generiert ein ArgoCD `AppProject`. Konfigurierbar via `appproject-values.yaml`:
-`project`, `description`, `sourceRepos`, `adminGroups`.
+Generiert ein ArgoCD `AppProject` mit drei Rollen:
+
+| Rolle | ArgoCD-Rechte | Konfiguration |
+|---|---|---|
+| `*-admin` | Vollzugriff | `adminGroups` (Default: cluster-admins) |
+| `*-developer` | get, sync, override | `developerTeams` (optional) |
+| `*-viewer` | get (read-only) | `viewerTeams` (optional) |
+
+Konfigurierbar via `appproject-values.yaml`:
+
+```yaml
+project: project-a
+sourceRepos:
+  - https://github.com/chriwo42-lang/ocp-workloads.git
+  - https://github.com/chriwo42-lang/my-app.git
+adminGroups:    [cluster-admins]  # ArgoCD Vollzugriff
+developerTeams: [team-a, team-b]  # ArgoCD get/sync/override
+viewerTeams:    []                # ArgoCD read-only
+```
+
+> **Wichtig:** `developerTeams`/`viewerTeams` steuern nur den **ArgoCD-Zugriff**.
+> Der **OpenShift Namespace-Zugriff** (kubectl/oc) wird in `app/values.yaml` unter `rbac` konfiguriert.
 
 ---
 
@@ -214,7 +252,7 @@ Generiert ein ArgoCD `AppProject`. Konfigurierbar via `appproject-values.yaml`:
 
 ## Projekte
 
-| Projekt | Apps | team-a | team-b |
-|---|---|---|---|
-| project-a | my-app, your-app | admin | edit |
-| project-b | my-app, your-app | admin | edit |
+| Projekt | Apps | team-a OpenShift | team-b OpenShift | team-a ArgoCD | team-b ArgoCD |
+|---|---|---|---|---|---|
+| project-a | my-app, your-app | admin | edit | developer | developer |
+| project-b | my-app, your-app | admin | edit | developer | developer |

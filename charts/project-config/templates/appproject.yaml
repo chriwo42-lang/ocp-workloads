@@ -7,7 +7,6 @@ metadata:
   name: {{ .Values.project }}
   namespace: openshift-gitops
   annotations:
-    # Wave -1: AppProject muss vor allen Applications existieren die es referenzieren
     argocd.argoproj.io/sync-wave: "-1"
 spec:
   description: {{ .Values.description | default (printf "%s – Applikationen und Namespace-Konfiguration" .Values.project) | quote }}
@@ -18,7 +17,6 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: {{ .Values.project }}-*
-  # Nur Namespace-Ressourcen auf Cluster-Ebene erlaubt
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
@@ -27,10 +25,32 @@ spec:
       kind: '*'
   roles:
     - name: {{ .Values.project }}-admin
-      description: {{ printf "Vollzugriff auf alle ArgoCD Apps in %s" .Values.project | quote }}
+      description: {{ printf "Vollzugriff auf alle ArgoCD Apps in %s (nur cluster-admins)" .Values.project | quote }}
       policies:
         - {{ printf "p, proj:%s:%s-admin, applications, *, %s/*, allow" .Values.project .Values.project .Values.project }}
       groups:
         {{- range .Values.adminGroups }}
         - {{ . }}
         {{- end }}
+    {{- if .Values.developerTeams }}
+    - name: {{ .Values.project }}-developer
+      description: {{ printf "Apps in %s einsehen und manuell synchen" .Values.project | quote }}
+      policies:
+        - {{ printf "p, proj:%s:%s-developer, applications, get, %s/*, allow" .Values.project .Values.project .Values.project }}
+        - {{ printf "p, proj:%s:%s-developer, applications, sync, %s/*, allow" .Values.project .Values.project .Values.project }}
+        - {{ printf "p, proj:%s:%s-developer, applications, override, %s/*, allow" .Values.project .Values.project .Values.project }}
+      groups:
+        {{- range .Values.developerTeams }}
+        - {{ . }}
+        {{- end }}
+    {{- end }}
+    {{- if .Values.viewerTeams }}
+    - name: {{ .Values.project }}-viewer
+      description: {{ printf "Apps in %s nur einsehen (read-only)" .Values.project | quote }}
+      policies:
+        - {{ printf "p, proj:%s:%s-viewer, applications, get, %s/*, allow" .Values.project .Values.project .Values.project }}
+      groups:
+        {{- range .Values.viewerTeams }}
+        - {{ . }}
+        {{- end }}
+    {{- end }}
