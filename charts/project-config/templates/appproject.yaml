@@ -25,33 +25,56 @@ spec:
     - group: '*'
       kind: '*'
   roles:
+    {{- $hasAdmin := or .Values.adminGroups .Values.adminUsers }}
+    {{- if $hasAdmin }}
     - name: {{ .Values.project }}-admin
-      description: {{ printf "Vollzugriff auf alle ArgoCD Apps in %s (nur cluster-admins)" .Values.project | quote }}
+      description: {{ printf "Vollzugriff auf alle ArgoCD Apps in %s" .Values.project | quote }}
       policies:
         - {{ printf "p, proj:%s:%s-admin, applications, *, %s/*, allow" .Values.project .Values.project .Values.project }}
       groups:
         {{- range .Values.adminGroups }}
         - {{ . }}
         {{- end }}
-    {{- if .Values.developerTeams }}
-    - name: {{ .Values.project }}-developer
+      {{- if .Values.adminUsers }}
+      users:
+        {{- range .Values.adminUsers }}
+        - {{ . }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- $hasEdit := or .Values.editGroups .Values.editUsers }}
+    {{- if $hasEdit }}
+    - name: {{ .Values.project }}-edit
       description: {{ printf "Apps in %s einsehen und manuell synchen" .Values.project | quote }}
       policies:
-        - {{ printf "p, proj:%s:%s-developer, applications, get, %s/*, allow" .Values.project .Values.project .Values.project }}
-        - {{ printf "p, proj:%s:%s-developer, applications, sync, %s/*, allow" .Values.project .Values.project .Values.project }}
-        - {{ printf "p, proj:%s:%s-developer, applications, override, %s/*, allow" .Values.project .Values.project .Values.project }}
+        - {{ printf "p, proj:%s:%s-edit, applications, get, %s/*, allow" .Values.project .Values.project .Values.project }}
+        - {{ printf "p, proj:%s:%s-edit, applications, sync, %s/*, allow" .Values.project .Values.project .Values.project }}
+        - {{ printf "p, proj:%s:%s-edit, applications, override, %s/*, allow" .Values.project .Values.project .Values.project }}
       groups:
-        {{- range .Values.developerTeams }}
+        {{- range .Values.editGroups }}
         - {{ . }}
         {{- end }}
+      {{- if .Values.editUsers }}
+      users:
+        {{- range .Values.editUsers }}
+        - {{ . }}
+        {{- end }}
+      {{- end }}
     {{- end }}
-    {{- if .Values.viewerTeams }}
-    - name: {{ .Values.project }}-viewer
+    {{- $hasView := or .Values.viewGroups .Values.viewUsers }}
+    {{- if $hasView }}
+    - name: {{ .Values.project }}-view
       description: {{ printf "Apps in %s nur einsehen (read-only)" .Values.project | quote }}
       policies:
-        - {{ printf "p, proj:%s:%s-viewer, applications, get, %s/*, allow" .Values.project .Values.project .Values.project }}
+        - {{ printf "p, proj:%s:%s-view, applications, get, %s/*, allow" .Values.project .Values.project .Values.project }}
       groups:
-        {{- range .Values.viewerTeams }}
+        {{- range .Values.viewGroups }}
         - {{ . }}
         {{- end }}
+      {{- if .Values.viewUsers }}
+      users:
+        {{- range .Values.viewUsers }}
+        - {{ . }}
+        {{- end }}
+      {{- end }}
     {{- end }}

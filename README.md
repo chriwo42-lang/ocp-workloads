@@ -11,9 +11,9 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 ocp-workloads/
 ├── apps/
 │   ├── groups/                      ← Team-Definitionen (eine Datei pro Team)
-│   │   ├── team-a.yaml              (developer — admin in project-a/b)
-│   │   ├── team-b.yaml              (editor — edit in project-a/b)
-│   │   └── team-c.yaml              (readonly — view in project-a/b)
+│   │   ├── team-a.yaml              (alice)
+│   │   ├── team-b.yaml              (bob)
+│   │   └── team-c.yaml              (charlie)
 │   ├── project-a/
 │   │   ├── appproject-app.yaml      ← Application → project-config Chart
 │   │   ├── appproject-values.yaml   ← project, sourceRepos, ArgoCD-Rollen
@@ -77,21 +77,26 @@ workloads-app (aus ocp-platform, recurse: true auf apps/)
 
 ## Berechtigungskonzept
 
-Zwei unabhängige Berechtigungsebenen:
+Einheitliche Terminologie auf beiden Ebenen: `admin`, `edit`, `view` — sowohl für
+OpenShift Namespace-Zugriff als auch für ArgoCD AppProject-Rollen.
 
-| Ebene | Was | Konfiguriert in |
-|---|---|---|
-| **OpenShift** | Namespace-Zugriff (kubectl/oc) | `app/values.yaml` → `rbac.*` |
-| **ArgoCD** | UI-Zugriff auf Applications | `appproject-values.yaml` → `developerTeams`, `viewerTeams` |
+| Ebene | admin | edit | view |
+|---|---|---|---|
+| **OpenShift** (Namespace) | RoleBinding `admin` | RoleBinding `edit` | RoleBinding `view` |
+| **ArgoCD** (AppProject) | `*`, alle Rechte | `get`, `sync`, `override` | `get` (read-only) |
+
+Konfiguriert über Gruppen (`*Groups`) oder einzelne User (`*Users`) — je Ebene unabhängig.
+
+Teams und Rollen sind **entkoppelt** — team-a kann in App X admin und in App Y edit sein.
 
 ### Berechtigungsmatrix (Test-Setup)
 
-| User | Team | OpenShift Namespace | ArgoCD |
+| User | Team | OpenShift Namespace | ArgoCD AppProject |
 |---|---|---|---|
-| `admin` | cluster-admins | cluster-admin | admin (alle Projekte) |
-| `developer` | team-a | admin in project-a/b Namespaces | developer in project-a/b |
-| `editor` | team-b | edit in project-a/b Namespaces | developer in project-a/b |
-| `readonly` | team-c | view in project-a/b Namespaces | viewer in project-a/b |
+| `admin` | cluster-admins | cluster-admin | admin |
+| `alice` | team-a | admin | edit |
+| `bob` | team-b | edit | edit |
+| `charlie` | team-c | view | view |
 
 ---
 
@@ -109,8 +114,6 @@ Zwei unabhängige Berechtigungsebenen:
 
 ## Team-Management
 
-Teams werden **global** in `apps/groups/` definiert — eine Datei pro Team.
-
 ### Neues Team anlegen
 
 ```powershell
@@ -126,7 +129,7 @@ git push
 ```yaml
 # apps/groups/team-a.yaml
 users:
-  - developer
+  - alice
   - neuer-user
 ```
 
@@ -135,7 +138,7 @@ git add . && git commit -m "feat(groups): add neuer-user to team-a"
 git push
 ```
 
-**2. Passwort direkt im Secret anlegen** (kein Tempfile):
+**2. Passwort direkt im Secret anlegen:**
 
 ```powershell
 $existing = oc get secret htpasswd-secret -n openshift-config `
@@ -169,8 +172,9 @@ mkdir apps\project-c
 #   sourceRepos:
 #     - https://github.com/chriwo42-lang/ocp-workloads.git
 #     - https://github.com/chriwo42-lang/new-app.git
-#   developerTeams: [team-a]
-#   viewerTeams: [team-c]
+#   editGroups:  [team-a]
+#   viewGroups:  [team-c]
+#   editUsers:   [alice]       # optional: einzelne User direkt
 ```
 
 ### 2. App anlegen
@@ -184,13 +188,14 @@ mkdir apps\project-c\new-app
 #   app: new-app
 #   project: project-c
 #   security:
-#     podSecurityEnforce: restricted   # oder baseline für Legacy-Apps
+#     podSecurityEnforce: restricted
 #   appRepo:
 #     url: https://github.com/chriwo42-lang/new-app.git
 #   rbac:
 #     adminGroups: [team-a]
 #     editGroups:  [team-b]
 #     viewGroups:  [team-c]
+#     adminUsers:  []           # optional: einzelne User direkt
 ```
 
 ### 3. Commit & Push
@@ -204,51 +209,41 @@ git push
 
 ## Helm Charts
 
-### `charts/app-config`
+### `charts/app-config` — Namespace-Konfiguration + ArgoCD Application
 
-Deployt direkt in den Ziel-Namespace:
-- `Namespace` mit Labels (inkl. Pod Security Admission) und Annotations
-- `ResourceQuota` + `LimitRange`
-- `NetworkPolicy` (Deny-All Basis, konfigurierbare Ausnahmen)
-- `RoleBindings` für Teams (admin/edit/view im OpenShift Namespace)
-- ArgoCD `Application` für das App-Repo der Entwickler
+Deployt direkt in den Ziel-Namespace. Einheitliche RBAC-Felder:
 
-| Parameter | Beschreibung | Default |
+| Parameter | OpenShift-Rolle | Pflicht |
 |---|---|---|
-| `app` | App-Name (**Pflicht**) | — |
-| `project` | Projektname (**Pflicht**) | — |
-| `appRepo.url` | Git-URL (**Pflicht**) | — |
-| `security.podSecurityEnforce` | Pod Security Level | `restricted` |
-| `security.podSecurityAudit` | Pod Security Audit Level | `restricted` |
-| `security.podSecurityWarn` | Pod Security Warn Level | `restricted` |
-| `quota.*` | ResourceQuota | siehe values.yaml |
-| `limitRange.*` | LimitRange | siehe values.yaml |
-| `networkPolicy.*` | NetworkPolicy | alle allow-Flags true |
-| `rbac.*` | Team-Zuweisungen | leer |
+| `app`, `project`, `appRepo.url` | — | ✅ |
+| `rbac.adminGroups` / `rbac.adminUsers` | admin | — |
+| `rbac.editGroups` / `rbac.editUsers` | edit | — |
+| `rbac.viewGroups` / `rbac.viewUsers` | view | — |
+| `security.podSecurityEnforce` | — | Default: `restricted` |
 
-### `charts/project-config`
+### `charts/project-config` — ArgoCD AppProject
 
-Generiert ein ArgoCD `AppProject` mit drei Rollen:
+Generiert ArgoCD-Rollen mit einheitlicher Terminologie:
 
-| Rolle | ArgoCD-Rechte | Konfiguriert via |
-|---|---|---|
-| `*-admin` | Vollzugriff | `adminGroups` |
-| `*-developer` | get, sync, override | `developerTeams` |
-| `*-viewer` | get (read-only) | `viewerTeams` |
+| Parameter | ArgoCD-Rechte |
+|---|---|
+| `adminGroups` / `adminUsers` | `*` (Vollzugriff) |
+| `editGroups` / `editUsers` | `get`, `sync`, `override` |
+| `viewGroups` / `viewUsers` | `get` (read-only) |
 
 ---
 
 ## Teams
 
-| Team | User | Zweck |
-|---|---|---|
-| team-a | developer | Admin in project-a/b Namespaces |
-| team-b | editor | Editor in project-a/b Namespaces |
-| team-c | readonly | Viewer in project-a/b Namespaces |
+| Team | User |
+|---|---|
+| team-a | alice |
+| team-b | bob |
+| team-c | charlie |
 
 ## Projekte
 
-| Projekt | Apps | team-a | team-b | team-c |
+| Projekt | Apps | team-a OpenShift / ArgoCD | team-b OpenShift / ArgoCD | team-c OpenShift / ArgoCD |
 |---|---|---|---|---|
-| project-a | my-app, your-app | admin / ArgoCD developer | edit / ArgoCD developer | view / ArgoCD viewer |
-| project-b | my-app, your-app | admin / ArgoCD developer | edit / ArgoCD developer | view / ArgoCD viewer |
+| project-a | my-app, your-app | admin / edit | edit / edit | view / view |
+| project-b | my-app, your-app | admin / edit | edit / edit | view / view |

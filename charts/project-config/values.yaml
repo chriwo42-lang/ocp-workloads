@@ -11,14 +11,15 @@ description: ""
 sourceRepos:
   - https://github.com/chriwo42-lang/ocp-workloads.git
 
-# -- ArgoCD admin-Rolle: Vollzugriff (nur Platform-Admins)
+# -- ArgoCD admin-Rolle: Vollzugriff
 adminGroups:
   - cluster-admins
+adminUsers: []
 
-# -- ArgoCD developer-Rolle: get, sync, override
-# Trägt man hier die Teams ein die in den App-Namespaces
-# admin oder edit Zugriff haben — kein separates Feld in app/values.yaml nötig.
-developerTeams: []
+# -- ArgoCD edit-Rolle: get, sync, override
+editGroups: []
+editUsers: []
 
-# -- ArgoCD viewer-Rolle: get (read-only)
-viewerTeams: []
+# -- ArgoCD view-Rolle: get (read-only)
+viewGroups: []
+viewUsers: []

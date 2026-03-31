@@ -5,7 +5,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
     # Team-B Mitglieder.
-    # Zuweisung zu Namespaces: rbac.editGroups in app/values.yaml
-    # ArgoCD-Zugriff: developerTeams in appproject-values.yaml
+    # Rolle je App konfigurierbar via rbac.adminGroups / rbac.editGroups / rbac.viewGroups
 users:
-  - editor
+  - bob

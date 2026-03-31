@@ -5,7 +5,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
     # Team-C Mitglieder.
-    # Zuweisung zu Namespaces: rbac.viewGroups in app/values.yaml
-    # ArgoCD-Zugriff: viewerTeams in appproject-values.yaml
+    # Rolle je App konfigurierbar via rbac.adminGroups / rbac.editGroups / rbac.viewGroups
 users:
-  - readonly
+  - charlie
