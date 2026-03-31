@@ -1,6 +1,9 @@
 # Default-Werte für den app-config Chart.
 # Pflichtfelder müssen in der jeweiligen app/values.yaml gesetzt werden.
 
+# -- ArgoCD Namespace (fix für OpenShift GitOps Operator)
+argoCDNamespace: openshift-gitops
+
 # -- Name der App (Pflichtfeld)
 app: ""
 
@@ -12,6 +15,14 @@ namespace: ""
 
 # -- Anzeigename für den Namespace
 displayName: ""
+
+# -- Pod Security Admission
+# enforce: restricted — keine privilegierten Container, kein root, read-only root fs
+# Kann je App auf "baseline" oder "privileged" gelockert werden wenn nötig.
+security:
+  podSecurityEnforce: restricted
+  podSecurityAudit: restricted
+  podSecurityWarn: restricted
 
 # -- App-Repo der Entwickler (Pflichtfeld: url)
 appRepo:
@@ -53,7 +64,9 @@ networkPolicy:
   allowEgressSameNamespace: true
   additionalIngressNamespaces: []
 
-# -- RBAC
+# -- RBAC (OpenShift Namespace-Zugriff)
+# Steuert RoleBindings im Namespace — nicht ArgoCD-Zugriff.
+# ArgoCD-Zugriff wird in appproject-values.yaml konfiguriert.
 rbac:
   adminGroups: []
   editGroups: []

@@ -11,14 +11,15 @@ Entwickler-Teams erhalten Zugriff auf ihre jeweiligen App-Repos — nicht auf di
 ocp-workloads/
 ├── apps/
 │   ├── groups/                      ← Team-Definitionen (eine Datei pro Team)
-│   │   ├── team-a.yaml
-│   │   └── team-b.yaml
+│   │   ├── team-a.yaml              (developer — admin in project-a/b)
+│   │   ├── team-b.yaml              (editor — edit in project-a/b)
+│   │   └── team-c.yaml              (readonly — view in project-a/b)
 │   ├── project-a/
 │   │   ├── appproject-app.yaml      ← Application → project-config Chart
-│   │   ├── appproject-values.yaml   ← project, sourceRepos, Rollen-Teams
+│   │   ├── appproject-values.yaml   ← project, sourceRepos, ArgoCD-Rollen
 │   │   ├── my-app/
 │   │   │   ├── app.yaml             ← Application → app-config Chart
-│   │   │   └── values.yaml          ← app, project, appRepo, quota, rbac, ...
+│   │   │   └── values.yaml          ← app, project, appRepo, security, quota, rbac
 │   │   └── your-app/
 │   │       ├── app.yaml
 │   │       └── values.yaml
@@ -33,7 +34,7 @@ ocp-workloads/
 │           └── values.yaml
 └── charts/
     ├── app-config/                  ← Helm Chart: Namespace, Quota, NetPol, RBAC
-    │   ├── Chart.yaml               │  + ArgoCD Application für das App-Repo
+    │   ├── Chart.yaml               │  + Pod Security Labels + ArgoCD Application
     │   ├── values.yaml
     │   └── templates/
     │       ├── namespace.yaml
@@ -56,21 +57,17 @@ ocp-workloads/
 workloads-app (aus ocp-platform, recurse: true auf apps/)
 ├── groups/
 │   ├── team-a.yaml                  Wave -1
-│   └── team-b.yaml                  Wave -1
+│   ├── team-b.yaml                  Wave -1
+│   └── team-c.yaml                  Wave -1
 ├── project-a/
-│   ├── appproject-app.yaml          Wave -1  → deployt AppProject via project-config Chart
-│   ├── my-app/
-│   │   └── app.yaml                 Wave  0  → deployt via app-config Chart:
-│   │                                           Namespace, Quota, NetPol, RBAC
-│   │                                           + Application für App-Repo
-│   └── your-app/
-│       └── app.yaml                 Wave  0
+│   ├── appproject-app.yaml          Wave -1  → AppProject via project-config Chart
+│   ├── my-app/app.yaml              Wave  0  → Namespace, Quota, NetPol, RBAC,
+│   │                                           Pod Security + App via app-config Chart
+│   └── your-app/app.yaml            Wave  0
 └── project-b/
     ├── appproject-app.yaml          Wave -1
-    ├── my-app/
-    │   └── app.yaml                 Wave  0
-    └── your-app/
-        └── app.yaml                 Wave  0
+    ├── my-app/app.yaml              Wave  0
+    └── your-app/app.yaml            Wave  0
 ```
 
 > `charts/` wird **nicht** von `workloads-app` deployt — die Charts werden als
@@ -87,10 +84,14 @@ Zwei unabhängige Berechtigungsebenen:
 | **OpenShift** | Namespace-Zugriff (kubectl/oc) | `app/values.yaml` → `rbac.*` |
 | **ArgoCD** | UI-Zugriff auf Applications | `appproject-values.yaml` → `developerTeams`, `viewerTeams` |
 
-```
-team-a → OpenShift: admin in project-a-my-app (via rbac.adminGroups)
-team-a → ArgoCD:    developer in project-a     (via developerTeams)
-```
+### Berechtigungsmatrix (Test-Setup)
+
+| User | Team | OpenShift Namespace | ArgoCD |
+|---|---|---|---|
+| `admin` | cluster-admins | cluster-admin | admin (alle Projekte) |
+| `developer` | team-a | admin in project-a/b Namespaces | developer in project-a/b |
+| `editor` | team-b | edit in project-a/b Namespaces | developer in project-a/b |
+| `readonly` | team-c | view in project-a/b Namespaces | viewer in project-a/b |
 
 ---
 
@@ -108,41 +109,49 @@ team-a → ArgoCD:    developer in project-a     (via developerTeams)
 
 ## Team-Management
 
-Teams werden **global** in `apps/groups/` definiert — eine Datei pro Team.  
-Die **Zuweisung** erfolgt auf zwei Ebenen je App bzw. Projekt.
+Teams werden **global** in `apps/groups/` definiert — eine Datei pro Team.
 
 ### Neues Team anlegen
 
 ```powershell
-# apps/groups/team-c.yaml anlegen (Vorlage: apps/groups/team-a.yaml)
-git add . && git commit -m "feat(groups): add team-c"
+# apps/groups/team-d.yaml anlegen (Vorlage: apps/groups/team-a.yaml)
+git add . && git commit -m "feat(groups): add team-d"
 git push
 ```
 
 ### Mitglied zu Team hinzufügen
 
+**1. Gruppe in Git pflegen:**
+
+```yaml
+# apps/groups/team-a.yaml
+users:
+  - developer
+  - neuer-user
+```
+
 ```powershell
-# apps/groups/team-a.yaml editieren
 git add . && git commit -m "feat(groups): add neuer-user to team-a"
 git push
 ```
 
-### Passwort für neuen User anlegen (manuell, außerhalb Git)
+**2. Passwort direkt im Secret anlegen** (kein Tempfile):
 
 ```powershell
-oc get secret htpasswd-secret -n openshift-config `
+$existing = oc get secret htpasswd-secret -n openshift-config `
   -o jsonpath='{.data.htpasswd}' | `
-  [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_)) | `
-  Out-File -FilePath "$env:TEMP\htpasswd" -Encoding utf8NoBOM
+  [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_))
 
-Add-Content "$env:TEMP\htpasswd" 'neuer-user:$2a$10$HASH_HIER'
+# Hash generieren: https://bcrypt-generator.com (Rounds 10)
+$combined = "$existing`nneuer-user:`$2a`$10`$HASH_HIER"
 
-oc create secret generic htpasswd-secret `
-  --from-file=htpasswd="$env:TEMP\htpasswd" `
-  -n openshift-config `
-  --dry-run=client -o yaml | oc apply -f -
+$encoded = [System.Convert]::ToBase64String(
+  [System.Text.Encoding]::UTF8.GetBytes($combined)
+)
 
-Remove-Item "$env:TEMP\htpasswd"
+oc patch secret htpasswd-secret -n openshift-config `
+  --type merge `
+  -p "{`"data`":{`"htpasswd`":`"$encoded`"}}"
 ```
 
 ---
@@ -161,7 +170,7 @@ mkdir apps\project-c
 #     - https://github.com/chriwo42-lang/ocp-workloads.git
 #     - https://github.com/chriwo42-lang/new-app.git
 #   developerTeams: [team-a]
-#   viewerTeams: []
+#   viewerTeams: [team-c]
 ```
 
 ### 2. App anlegen
@@ -174,11 +183,14 @@ mkdir apps\project-c\new-app
 # values.yaml:
 #   app: new-app
 #   project: project-c
+#   security:
+#     podSecurityEnforce: restricted   # oder baseline für Legacy-Apps
 #   appRepo:
 #     url: https://github.com/chriwo42-lang/new-app.git
 #   rbac:
 #     adminGroups: [team-a]
 #     editGroups:  [team-b]
+#     viewGroups:  [team-c]
 ```
 
 ### 3. Commit & Push
@@ -195,64 +207,48 @@ git push
 ### `charts/app-config`
 
 Deployt direkt in den Ziel-Namespace:
-- `Namespace` mit Labels und Annotations
+- `Namespace` mit Labels (inkl. Pod Security Admission) und Annotations
 - `ResourceQuota` + `LimitRange`
 - `NetworkPolicy` (Deny-All Basis, konfigurierbare Ausnahmen)
 - `RoleBindings` für Teams (admin/edit/view im OpenShift Namespace)
 - ArgoCD `Application` für das App-Repo der Entwickler
 
-Konfigurierbar via `values.yaml`:
-
-| Parameter | Beschreibung | Pflicht |
+| Parameter | Beschreibung | Default |
 |---|---|---|
-| `app` | App-Name | ✅ |
-| `project` | Projektname | ✅ |
-| `appRepo.url` | Git-URL des App-Repos | ✅ |
-| `appRepo.targetRevision` | Branch/Tag (Default: main) | — |
-| `appRepo.path` | Pfad zum Helm Chart (Default: helm) | — |
-| `displayName` | Anzeigename für den Namespace | — |
-| `quota.*` | ResourceQuota Werte | — |
-| `limitRange.*` | LimitRange Werte | — |
-| `networkPolicy.*` | NetworkPolicy Konfiguration | — |
-| `rbac.*` | OpenShift Team-Zuweisungen (admin/edit/view im Namespace) | — |
+| `app` | App-Name (**Pflicht**) | — |
+| `project` | Projektname (**Pflicht**) | — |
+| `appRepo.url` | Git-URL (**Pflicht**) | — |
+| `security.podSecurityEnforce` | Pod Security Level | `restricted` |
+| `security.podSecurityAudit` | Pod Security Audit Level | `restricted` |
+| `security.podSecurityWarn` | Pod Security Warn Level | `restricted` |
+| `quota.*` | ResourceQuota | siehe values.yaml |
+| `limitRange.*` | LimitRange | siehe values.yaml |
+| `networkPolicy.*` | NetworkPolicy | alle allow-Flags true |
+| `rbac.*` | Team-Zuweisungen | leer |
 
 ### `charts/project-config`
 
 Generiert ein ArgoCD `AppProject` mit drei Rollen:
 
-| Rolle | ArgoCD-Rechte | Konfiguration |
+| Rolle | ArgoCD-Rechte | Konfiguriert via |
 |---|---|---|
-| `*-admin` | Vollzugriff | `adminGroups` (Default: cluster-admins) |
-| `*-developer` | get, sync, override | `developerTeams` (optional) |
-| `*-viewer` | get (read-only) | `viewerTeams` (optional) |
-
-Konfigurierbar via `appproject-values.yaml`:
-
-```yaml
-project: project-a
-sourceRepos:
-  - https://github.com/chriwo42-lang/ocp-workloads.git
-  - https://github.com/chriwo42-lang/my-app.git
-adminGroups:    [cluster-admins]  # ArgoCD Vollzugriff
-developerTeams: [team-a, team-b]  # ArgoCD get/sync/override
-viewerTeams:    []                # ArgoCD read-only
-```
-
-> **Wichtig:** `developerTeams`/`viewerTeams` steuern nur den **ArgoCD-Zugriff**.
-> Der **OpenShift Namespace-Zugriff** (kubectl/oc) wird in `app/values.yaml` unter `rbac` konfiguriert.
+| `*-admin` | Vollzugriff | `adminGroups` |
+| `*-developer` | get, sync, override | `developerTeams` |
+| `*-viewer` | get (read-only) | `viewerTeams` |
 
 ---
 
 ## Teams
 
-| Team | Mitglieder |
-|---|---|
-| team-a | developer |
-| team-b | — |
+| Team | User | Zweck |
+|---|---|---|
+| team-a | developer | Admin in project-a/b Namespaces |
+| team-b | editor | Editor in project-a/b Namespaces |
+| team-c | readonly | Viewer in project-a/b Namespaces |
 
 ## Projekte
 
-| Projekt | Apps | team-a OpenShift | team-b OpenShift | team-a ArgoCD | team-b ArgoCD |
-|---|---|---|---|---|---|
-| project-a | my-app, your-app | admin | edit | developer | developer |
-| project-b | my-app, your-app | admin | edit | developer | developer |
+| Projekt | Apps | team-a | team-b | team-c |
+|---|---|---|---|---|
+| project-a | my-app, your-app | admin / ArgoCD developer | edit / ArgoCD developer | view / ArgoCD viewer |
+| project-b | my-app, your-app | admin / ArgoCD developer | edit / ArgoCD developer | view / ArgoCD viewer |

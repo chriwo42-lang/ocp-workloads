@@ -1,11 +1,12 @@
 {{- if not .Values.project }}
   {{- fail "project ist ein Pflichtfeld und muss in appproject-values.yaml gesetzt werden" }}
 {{- end }}
+{{- $argoCDNamespace := "openshift-gitops" }}
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: {{ .Values.project }}
-  namespace: openshift-gitops
+  namespace: {{ $argoCDNamespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 spec:

@@ -1,13 +1,17 @@
 # App-Konfiguration für project-a/my-app
 app: my-app
 project: project-a
-# namespace wird automatisch zu "project-a-my-app" wenn nicht gesetzt
 displayName: "Project A - My App"
 
 appRepo:
   url: https://github.com/chriwo42-lang/my-app.git
   targetRevision: main
   path: helm
+
+security:
+  podSecurityEnforce: baseline
+  podSecurityAudit: baseline
+  podSecurityWarn: baseline
 
 quota:
   enabled: true
@@ -44,7 +48,8 @@ rbac:
     - team-a
   editGroups:
     - team-b
-  viewGroups: []
+  viewGroups:
+    - team-c
   adminUsers: []
   editUsers: []
   viewUsers: []

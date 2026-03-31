@@ -1,30 +1,24 @@
 # Default-Werte für den project-config Chart.
-# Pflichtfelder müssen in der jeweiligen appproject-values.yaml gesetzt werden.
+# Pflichtfelder müssen in appproject-values.yaml gesetzt werden.
 
 # -- Name des Projekts (Pflichtfeld)
 project: ""
 
-# -- Beschreibung des Projekts
+# -- Beschreibung
 description: ""
 
-# -- Source-Repos die dieses AppProject deployen darf.
-# ocp-workloads ist immer enthalten (für app-config Chart).
-# App-spezifische Repos hier auflisten.
+# -- Erlaubte Source-Repos (ocp-workloads immer enthalten)
 sourceRepos:
   - https://github.com/chriwo42-lang/ocp-workloads.git
 
-# -- ArgoCD-Rollen (nicht OpenShift RBAC)
-# Admin: Vollzugriff auf alle Applications (nur Platform-Admins)
+# -- ArgoCD admin-Rolle: Vollzugriff (nur Platform-Admins)
 adminGroups:
   - cluster-admins
 
-# -- Developer: get, sync, override — können Apps einsehen und manuell synchen
+# -- ArgoCD developer-Rolle: get, sync, override
+# Trägt man hier die Teams ein die in den App-Namespaces
+# admin oder edit Zugriff haben — kein separates Feld in app/values.yaml nötig.
 developerTeams: []
-# Beispiel:
-#   - team-a
-#   - team-b
 
-# -- Viewer: get — können Apps nur einsehen (read-only)
+# -- ArgoCD viewer-Rolle: get (read-only)
 viewerTeams: []
-# Beispiel:
-#   - team-c

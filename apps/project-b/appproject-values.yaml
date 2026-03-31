@@ -7,14 +7,12 @@ sourceRepos:
   - https://github.com/chriwo42-lang/my-app.git
   - https://github.com/chriwo42-lang/your-app.git
 
-# ArgoCD admin-Rolle (Vollzugriff)
 adminGroups:
   - cluster-admins
 
-# ArgoCD developer-Rolle (get, sync, override)
 developerTeams:
   - team-a
   - team-b
 
-# ArgoCD viewer-Rolle (get, read-only)
-viewerTeams: []
+viewerTeams:
+  - team-c

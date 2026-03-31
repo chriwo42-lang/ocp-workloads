@@ -1,0 +1,11 @@
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: team-c
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    # Team-C Mitglieder.
+    # Zuweisung zu Namespaces: rbac.viewGroups in app/values.yaml
+    # ArgoCD-Zugriff: viewerTeams in appproject-values.yaml
+users:
+  - readonly

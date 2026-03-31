@@ -3,14 +3,14 @@
 {{- end }}
 {{- $namespace := .Values.namespace | default (printf "%s-%s" .Values.project .Values.app) }}
 {{- $releaseName := .Values.appRepo.releaseName | default .Values.app }}
+{{- $argoCDNamespace := .Values.argoCDNamespace | default "openshift-gitops" }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: {{ .Values.project }}-{{ .Values.app }}
-  namespace: openshift-gitops
+  namespace: {{ $argoCDNamespace }}
   annotations:
-    # AppProject (Wave -1) und Teams (Wave -1) müssen vorher existieren.
     argocd.argoproj.io/sync-wave: "0"
 spec:
   project: {{ .Values.project }}
